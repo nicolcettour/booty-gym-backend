@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer'); // Librería añadida
+const nodemailer = require('nodemailer');
 const db = require('./config/db');
+
 const app = express();
 
 app.use(cors());
