@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BOOTY GYM FEMME | Sistema</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="sidebar" style="display: none;">
+        <h1>BOOTY GYM</h1>
+       <nav>
+            <ul>
+                <li onclick="window.GymApp.cambiarVista('CLIENTAS')">CLIENTAS</li>
+                <li onclick="window.GymApp.cambiarVista('RUTINAS')">CONTROL DE HORARIOS</li>
+                <li onclick="window.GymApp.cambiarVista('PAGOS')">CONTROL DE PAGOS</li>
+                <li onclick="window.GymApp.cambiarVista('BOOTY')">BOOTY CLUB</li>
+                
+                <!-- ESTA ES LA LÍNEA QUE FALTA AGREGAR -->
+                <div id="user-display" style="margin: 15px 0; color: #ff9a8b; text-align: center; font-weight: bold; font-size: 0.9em;"></div>
+                
+                <li onclick="window.GymApp.login.logout()" style="margin-top: 5px; color: #ff9a8b; border: 1px solid #ff9a8b; border-radius: 5px; cursor: pointer; text-align: center; padding: 5px;">CERRAR SESIÓN</li>
+            </ul>
+        </nav>
+    </div>
+    <main id="app">
+        <h2>Bienvenida al sistema de gestión</h2>
+        <p>Selecciona una opción del menú lateral para comenzar.</p>
+    </main>
+
+    <!-- Cargamos los scripts en el orden correcto (de módulos a orquestador) -->
+    <script src="js/clientas.js"></script>
+    <script src="js/pagos.js"></script>
+    <script src="js/horarios.js"></script>
+    <script src="js/login.js"></script>
+    <script src="bootyClub.js"></script>
+    <script src="app.js"></script>
+
+    <canvas id="bgCanvas" style="position:fixed; top:0; left:0; z-index:-1;"></canvas>
+    <script>
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        let particles = [];
+
+        function createParticle() {
+            return {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 3,
+                speedX: Math.random() * 1 - 0.5,
+                speedY: Math.random() * 1 - 0.5,
+                color: '#ff9a8b'
+            };
+        }
+
+        for(let i=0; i<50; i++) particles.push(createParticle());
+
+        function animate() {
+            ctx.fillStyle = '#0f0f0f';
+            ctx.fillRect(0,0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.x += p.speedX; p.y += p.speedY;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
