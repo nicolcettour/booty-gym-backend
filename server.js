@@ -13,12 +13,12 @@ app.get('/', (req, res) => {
     res.status(200).send('Backend de Booty Gym activo');
 });
 
-// Configuración de Email (Por si lo usas en otro lado, lo dejamos listo)
+// Configuración de Email actualizada para usar las variables de entorno de Render
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'cettour53@gmail.com',
-        pass: 'wcqgjkpmsypvtyju'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -278,18 +278,16 @@ app.post('/solicitar-codigo', async (req, res) => {
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // Intentamos enviar el correo, pero si Render bloquea el puerto, 
-        // no rompemos la aplicación y dejamos constancia en los logs
+        // Intentamos enviar el correo de forma segura con Nodemailer
         try {
             await transporter.sendMail({
-                from: 'cettour53@gmail.com',
-                to: userResult.rows[0].email || username, // O el campo donde guardes el correo
+                from: process.env.EMAIL_USER,
+                to: userResult.rows[0].email || username,
                 subject: 'Código de recuperación - Booty Gym',
                 text: `Tu código de recuperación es: ${codigo}`
             });
         } catch (mailError) {
             console.error("Advertencia de correo (Render bloqueó SMTP):", mailError.message);
-            // El código se guardó en la base de datos de todas formas
         }
 
         console.log(`--- CÓDIGO DE RECUPERACIÓN PARA ${username}: ${codigo} ---`);
@@ -299,6 +297,7 @@ app.post('/solicitar-codigo', async (req, res) => {
         res.status(500).json({ success: false, message: "Error interno del servidor" });
     }
 });
+
 app.post('/verificar-y-cambiar', async (req, res) => {
     try {
         const { username, codigo, nuevaPass } = req.body;
