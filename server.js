@@ -8,29 +8,33 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuración de Email
+// Ruta raíz requerida para mantener activo UptimeRobot en Render
+app.get('/', (req, res) => {
+    res.status(200).send('Backend de Booty Gym activo');
+});
+
+// Configuración de Email (Por si lo usas en otro lado, lo dejamos listo)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'cettour53@gmail.com', // CAMBIA ESTO por tu correo real
-        pass: 'wcqgjkpmsypvtyju'    // Tu contraseña de aplicación generada
+        user: 'cettour53@gmail.com',
+        pass: 'wcqgjkpmsypvtyju'
     }
 });
 
 // Constante de control
 const GIMNASIO_ACTUAL = 'BOOTY_GYM_001';
 
-// Función auxiliar segura para poner la primera letra en mayúscula (solo para nombres y apellidos)
+// Función auxiliar segura para poner la primera letra en mayúscula
 const capitalizar = (str) => {
     if (!str) return '';
     return str.trim().toLowerCase().replace(/(^\w{1})|(\s+\w{1})/g, letra => letra.toUpperCase());
 };
 
-// Función auxiliar para formatear la altura automáticamente para la base de datos (usa punto para SQL)
+// Función auxiliar para formatear la altura automáticamente para la base de datos
 const formatearAlturaServidor = (val) => {
     if (!val) return null;
-    let str = String(val).trim().replace(',', '.'); // Cambiamos cualquier coma por punto para SQL
-    // Si escriben en centímetros sin separador (ej: 165 o 170), lo convertimos a metros con punto (1.65 / 1.70)
+    let str = String(val).trim().replace(',', '.');
     if (!str.includes('.') && str.length === 3) {
         return str[0] + '.' + str.slice(1);
     }
@@ -40,7 +44,6 @@ const formatearAlturaServidor = (val) => {
 // --- RUTAS DE CLIENTAS ---
 app.get('/clientas', async (req, res) => {
     try {
-        // Añadido ORDER BY para mostrarlas ordenadas alfabéticamente por nombre y apellido
         const result = await db.query(
             'SELECT * FROM clientas WHERE gym_id = $1 ORDER BY nombre ASC, apellido ASC', 
             [GIMNASIO_ACTUAL]
@@ -56,34 +59,19 @@ app.post('/clientas', async (req, res) => {
     try {
         const { nombre, apellido, contacto, ubicacion, peso, altura, horario, dias, busto, cintura, cadera, abductores, cuadriceps, gemelos, salud, objetivo } = req.body;
         
-        // Aplicamos capitalización y formateo de altura
         const nombreFormateado = capitalizar(nombre);
         const apellidoFormateado = capitalizar(apellido);
         const alturaFormateada = formatearAlturaServidor(altura); 
-        
         const diasTexto = Array.isArray(dias) ? dias.join(', ') : (dias || '');
 
         const query = `INSERT INTO clientas (nombre, apellido, contacto, ubicacion, peso, altura, horario, dias, busto, cintura, cadera, abductores, cuadriceps, gemelos, salud, objetivo, gym_id)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`;
         
         const values = [
-            nombreFormateado, 
-            apellidoFormateado, 
-            contacto || '', 
-            ubicacion || '', 
-            peso || null, 
-            alturaFormateada || null, 
-            horario || '', 
-            diasTexto, 
-            busto || null, 
-            cintura || null, 
-            cadera || null, 
-            abductores || null, 
-            cuadriceps || null, 
-            gemelos || null, 
-            salud || 'no', 
-            objetivo || '', 
-            GIMNASIO_ACTUAL
+            nombreFormateado, apellidoFormateado, contacto || '', ubicacion || '', peso || null, 
+            alturaFormateada || null, horario || '', diasTexto, busto || null, cintura || null, 
+            cadera || null, abductores || null, cuadriceps || null, gemelos || null, 
+            salud || 'no', objetivo || '', GIMNASIO_ACTUAL
         ];
         
         const result = await db.query(query, values);
@@ -94,7 +82,6 @@ app.post('/clientas', async (req, res) => {
     }
 });
 
-// --- RUTA PARA ACTUALIZAR FICHA DE CLIENTA ---
 app.put('/clientas/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -138,11 +125,9 @@ app.put('/clientas/:id', async (req, res) => {
     }
 });
 
-// --- RUTA PARA ELIMINAR CLIENTA ---
 app.delete('/clientas/:id', async (req, res) => {
     try {
         const { id } = req.params;
-
         await db.query('DELETE FROM pagos WHERE clienta_id = $1 AND gym_id = $2', [id, GIMNASIO_ACTUAL]);
 
         const query = 'DELETE FROM clientas WHERE id = $1 AND gym_id = $2';
@@ -162,10 +147,7 @@ app.delete('/clientas/:id', async (req, res) => {
 // --- RUTAS DE PAGOS ---
 app.get('/pagos', async (req, res) => {
     try {
-        const result = await db.query(
-            'SELECT * FROM pagos WHERE gym_id = $1 ORDER BY id DESC', 
-            [GIMNASIO_ACTUAL]
-        );
+        const result = await db.query('SELECT * FROM pagos WHERE gym_id = $1 ORDER BY id DESC', [GIMNASIO_ACTUAL]);
         res.status(200).json(result.rows);
     } catch (err) {
         console.error("Error al obtener historial:", err);
@@ -221,8 +203,6 @@ app.post('/pagos', async (req, res) => {
 });
 
 // --- RUTAS CONFIGURACIÓN ---
-
-// 1. Obtener la configuración actual al abrir la app
 app.get('/config', async (req, res) => {
     try {
         const result = await db.query('SELECT monto_cuota, interes FROM configuracion WHERE gym_id = $1', [GIMNASIO_ACTUAL]);
@@ -237,7 +217,6 @@ app.get('/config', async (req, res) => {
     }
 });
 
-// 2. Guardar o actualizar la configuración permanentemente
 app.post('/config', async (req, res) => {
     const { montoCuota, interesPorcentaje } = req.body;
     try {
@@ -251,7 +230,8 @@ app.post('/config', async (req, res) => {
         res.status(500).send('Error al guardar configuración');
     }
 });
-// --- RUTAS DE USUARIO (LOGIN / REGISTER) ---
+
+// --- RUTAS DE USUARIO (LOGIN / REGISTER / RECUPERACIÓN) ---
 app.post('/login', async (req, res) => {
     try {
         const { user, pass } = req.body;
@@ -286,26 +266,19 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// Ejemplo de la ruta /solicitar-codigo en tu server.js
+// Ruta corregida usando 'db' y la tabla 'usuarios'
 app.post('/solicitar-codigo', async (req, res) => {
     const { username } = req.body;
     try {
-        // 1. Verificamos que el usuario/admin exista en la base de datos
-        const userResult = await pool.query('SELECT * FROM administradores WHERE username = $1', [username]);
+        const userResult = await db.query('SELECT * FROM usuarios WHERE username = $1', [username]);
         if (userResult.rows.length === 0) {
             return res.json({ success: false, message: "Usuario no encontrado" });
         }
 
-        // 2. Generamos un código aleatorio de 6 dígitos
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+        await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // 3. Guardamos el código en la base de datos (asegúrate de tener columnas para esto o guárdalo temporalmente)
-        await pool.query('UPDATE administradores SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
-
-        // Como Render bloquea el envío de emails por SMTP, imprimimos el código en los logs de Render
         console.log(`--- CÓDIGO DE RECUPERACIÓN PARA ${username}: ${codigo} ---`);
-
-        // Respondemos con éxito para que la pantalla de la app avance a pedir el código
         res.json({ success: true, message: "Código generado con éxito" });
     } catch (err) {
         console.error("Error al solicitar código:", err);
@@ -333,9 +306,10 @@ app.post('/verificar-y-cambiar', async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Contraseña actualizada' });
     } catch (err) {
+        console.error("Error al cambiar contraseña:", err);
         res.status(500).send('Error al cambiar contraseña');
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => console.log(`Servidor activo en http://localhost:${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
