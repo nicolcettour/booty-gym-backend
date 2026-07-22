@@ -15,7 +15,7 @@ window.GymApp.clientas = {
     // Nueva función para traer los datos reales de Postgres al iniciar
     cargarDesdeServidor: async function() {
         try {
-            const res = await fetch('http://localhost:3000/clientas');
+            const res = await fetch('https://booty-gym-backend.onrender.com/clientas');
             const data = await res.json();
             window.GymApp.config.clientas = data;
             localStorage.setItem('listaClientas', JSON.stringify(data));
@@ -137,12 +137,12 @@ window.GymApp.clientas = {
         };
         
         try {
-            let url = 'http://localhost:3000/clientas';
+            let url = 'https://booty-gym-backend.onrender.com/clientas';
             let method = 'POST';
 
             // Si tiene ID y estamos editando, usamos PUT
             if (index !== "" && clientId) {
-                url = `http://localhost:3000/clientas/${clientId}`;
+                url = `https://booty-gym-backend.onrender.com/clientas/${clientId}`;
                 method = 'PUT';
             }
 
@@ -153,7 +153,6 @@ window.GymApp.clientas = {
             });
 
             if (response.ok) {
-                // Volvemos a cargar directo del servidor para asegurar sincronización perfecta
                 await this.cargarDesdeServidor();
             } else {
                 alert("Error al guardar en el servidor.");
@@ -187,12 +186,11 @@ window.GymApp.clientas = {
             }
 
             try {
-                const response = await fetch(`http://localhost:3000/clientas/${clientaAEliminar.id}`, {
+                const response = await fetch(`https://booty-gym-backend.onrender.com/clientas/${clientaAEliminar.id}`, {
                     method: 'DELETE'
                 });
 
                 if (response.ok) {
-                    // Recargamos directamente desde el servidor para actualizar la lista limpia
                     await this.cargarDesdeServidor();
                 } else {
                     alert("No se pudo eliminar la clienta del servidor.");

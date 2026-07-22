@@ -25,7 +25,7 @@ window.GymApp.login = {
         const user = document.getElementById('login-user').value;
         if (!user) return alert("Por favor, ingresa tu usuario arriba primero.");
         
-        fetch('http://localhost:3000/solicitar-codigo', {
+        fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user })
@@ -49,7 +49,7 @@ window.GymApp.login = {
         const codigo = document.getElementById('rec-codigo').value;
         const nuevaPass = document.getElementById('rec-new-pass').value;
 
-        const response = await fetch('http://localhost:3000/verificar-y-cambiar', {
+        const response = await fetch('https://booty-gym-backend.onrender.com/verificar-y-cambiar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, codigo, nuevaPass })
@@ -72,7 +72,7 @@ window.GymApp.login = {
         if (!user || !pass || !email) return alert("Completa usuario, contraseña y email");
 
         try {
-            const response = await fetch('http://localhost:3000/register', {
+            const response = await fetch('https://booty-gym-backend.onrender.com/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user, pass, email }) // CORREGIDO
@@ -92,7 +92,7 @@ validar: async function() {
     const pass = document.getElementById('login-pass').value;
 
     try {
-        const response = await fetch('http://localhost:3000/login', {
+        const response = await fetch('https://booty-gym-backend.onrender.com/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user, pass })

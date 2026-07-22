@@ -12,8 +12,8 @@ window.GymApp.init = async function() {
         // Obtenemos el gym_id guardado tras el login
         const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
         
-        // Conexión al servidor local para clientas
-        const response = await fetch(`http://localhost:3000/clientas?gym_id=${gymId}`);
+        // Conexión al servidor en Render para clientas
+        const response = await fetch(`https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}`);
         
         if (response.ok) {
             const data = await response.json();
@@ -29,7 +29,7 @@ window.GymApp.init = async function() {
 
     // --- NUEVO: CARGAR CONFIGURACIÓN GLOBAL DESDE POSTGRESQL ---
     try {
-        const resConfig = await fetch('http://localhost:3000/config');
+        const resConfig = await fetch('https://booty-gym-backend.onrender.com/');
         if (resConfig.ok) {
             const dataConfig = await resConfig.json();
             window.GymApp.config.pagosConfig = {
@@ -50,8 +50,7 @@ window.GymApp.init = async function() {
 window.GymApp.init();
 
 // --- INICIO DE SEGURIDAD Y LOGIN ---
-// IMPORTANTE: Asegúrate de que en tu lógica de login (probablemente en otro archivo o componente) 
-// cuando el login sea exitoso, guardes el ID así: localStorage.setItem('gym_id', data.gym_id);
+// IMPORTANTE: Asegúrate de que en tu lógica de login cuando el login sea exitoso, guardes el ID así: localStorage.setItem('gym_id', data.gym_id);
 
 setTimeout(() => {
     if (!window.GymApp.adminLogueado && window.GymApp.login) {
@@ -111,8 +110,9 @@ window.GymApp.renderLogo = function() {
         </div>
     `;
 };
+
 // Mostrar el usuario al cargar la página
-wwindow.addEventListener('load', () => {
+window.addEventListener('load', () => {
     const admin = localStorage.getItem('admin_user');
     const gymId = localStorage.getItem('gym_id');
     const userDisplay = document.getElementById('user-display');
