@@ -10,7 +10,7 @@ app.use(express.json());
 
 // Ruta raíz requerida para mantener activo UptimeRobot en Render y evitar el error "Cannot GET /"
 app.get('/', (req, res) => {
-    res.status(200).send('Backend de Booty Gym activo');
+    res.status(200).json({ status: 'success', message: 'Backend de Booty Gym activo' });
 });
 
 // Configuración de Email actualizada para usar las variables de entorno de Render
