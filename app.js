@@ -29,21 +29,14 @@ window.GymApp.init = async function() {
 
     // --- NUEVO: CARGAR CONFIGURACIÓN GLOBAL DESDE POSTGRESQL ---
     try {
-        const resConfig = await fetch('https://booty-gym-backend.onrender.com/');
-        if (resConfig.ok) {
-            const dataConfig = await resConfig.json();
-            window.GymApp.config.pagosConfig = {
-                montoCuota: dataConfig.monto_cuota,
-                interesPorcentaje: dataConfig.interes
-            };
-            // Actualizamos también el localStorage para respaldo instantáneo
-            localStorage.setItem('configuracionGym', JSON.stringify(window.GymApp.config.pagosConfig));
-            console.log("Configuración cargada correctamente desde PostgreSQL");
-        }
-    } catch (error) {
-        console.warn("No se pudo cargar la config del servidor, usando respaldo local:", error);
-        window.GymApp.config.pagosConfig = JSON.parse(localStorage.getItem('configuracionGym')) || { montoCuota: 94000, interesPorcentaje: 0 };
-    }
+    const res = await fetch('https://booty-gym-backend.onrender.com/');
+    const text = await res.text();
+    // Intentar parsear a JSON de forma segura
+    const data = text.startsWith('{') ? JSON.parse(text) : { message: text };
+    console.log("Config cargada:", data);
+} catch (error) {
+    console.warn("No se pudo cargar la config del servidor, usando respaldo local:", error);
+}
 };
 
 // 3. Ejecutamos el init
