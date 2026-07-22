@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ruta raíz requerida para mantener activo UptimeRobot en Render
+// Ruta raíz requerida para mantener activo UptimeRobot en Render y evitar el error "Cannot GET /"
 app.get('/', (req, res) => {
     res.status(200).send('Backend de Booty Gym activo');
 });
