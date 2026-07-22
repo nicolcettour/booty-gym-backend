@@ -286,33 +286,30 @@ app.post('/register', async (req, res) => {
     }
 });
 
+// Ejemplo de la ruta /solicitar-codigo en tu server.js
 app.post('/solicitar-codigo', async (req, res) => {
+    const { username } = req.body;
     try {
-        const { username } = req.body;
-        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        const result = await db.query(
-            'UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2 RETURNING email',
-            [codigo, username]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).send('Usuario no encontrado');
+        // 1. Verificamos que el usuario/admin exista en la base de datos
+        const userResult = await pool.query('SELECT * FROM administradores WHERE username = $1', [username]);
+        if (userResult.rows.length === 0) {
+            return res.json({ success: false, message: "Usuario no encontrado" });
         }
 
-        const emailDestino = result.rows[0].email;
+        // 2. Generamos un código aleatorio de 6 dígitos
+        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
 
-        await transporter.sendMail({
-            from: '"Gym App" <tu_correo@gmail.com>',
-            to: emailDestino,
-            subject: 'Tu código de recuperación',
-            text: `Tu código para restablecer la contraseña es: ${codigo}`
-        });
-        
-        res.status(200).json({ success: true, message: "Código enviado a tu email" });
+        // 3. Guardamos el código en la base de datos (asegúrate de tener columnas para esto o guárdalo temporalmente)
+        await pool.query('UPDATE administradores SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
+
+        // Como Render bloquea el envío de emails por SMTP, imprimimos el código en los logs de Render
+        console.log(`--- CÓDIGO DE RECUPERACIÓN PARA ${username}: ${codigo} ---`);
+
+        // Respondemos con éxito para que la pantalla de la app avance a pedir el código
+        res.json({ success: true, message: "Código generado con éxito" });
     } catch (err) {
-        console.error("Error al generar código:", err);
-        res.status(500).send('Error al procesar la solicitud');
+        console.error("Error al solicitar código:", err);
+        res.status(500).json({ success: false, message: "Error interno del servidor" });
     }
 });
 
