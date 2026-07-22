@@ -278,14 +278,27 @@ app.post('/solicitar-codigo', async (req, res) => {
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
+        // Intentamos enviar el correo, pero si Render bloquea el puerto, 
+        // no rompemos la aplicación y dejamos constancia en los logs
+        try {
+            await transporter.sendMail({
+                from: 'cettour53@gmail.com',
+                to: userResult.rows[0].email || username, // O el campo donde guardes el correo
+                subject: 'Código de recuperación - Booty Gym',
+                text: `Tu código de recuperación es: ${codigo}`
+            });
+        } catch (mailError) {
+            console.error("Advertencia de correo (Render bloqueó SMTP):", mailError.message);
+            // El código se guardó en la base de datos de todas formas
+        }
+
         console.log(`--- CÓDIGO DE RECUPERACIÓN PARA ${username}: ${codigo} ---`);
-        res.json({ success: true, message: "Código generado con éxito" });
+        res.json({ success: true, message: "Código generado con éxito. Revisa tu correo o los registros." });
     } catch (err) {
         console.error("Error al solicitar código:", err);
         res.status(500).json({ success: false, message: "Error interno del servidor" });
     }
 });
-
 app.post('/verificar-y-cambiar', async (req, res) => {
     try {
         const { username, codigo, nuevaPass } = req.body;
