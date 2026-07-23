@@ -13,15 +13,16 @@ app.get('/', (req, res) => {
     res.status(200).json({ status: 'success', message: 'Backend de Booty Gym activo' });
 });
 
-// Configuración de Email actualizada para usar las variables de entorno de Render
+// Configuración genérica y universal compatible con Gmail, Outlook y Yahoo
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: false,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     }
 });
-
 // Constante de control
 const GIMNASIO_ACTUAL = 'BOOTY_GYM_001';
 
@@ -282,11 +283,11 @@ app.post('/solicitar-codigo', async (req, res) => {
         // Intentamos enviar el correo de forma segura con Nodemailer
         try {
             await transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: userResult.rows[0].email || username,
-                subject: 'Código de recuperación - Booty Gym',
-                text: `Tu código de recuperación es: ${codigo}`
-            });
+            from: process.env.EMAIL_FROM,
+            to: userResult.rows[0].email,
+            subject: 'Código de recuperación - Booty Gym',
+            text: `Hola, tu código de recuperación es: ${codigo}`
+        });
         } catch (mailError) {
             console.error("Advertencia de correo (Render bloqueó SMTP):", mailError.message);
         }
