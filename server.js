@@ -261,8 +261,9 @@ app.post('/register', async (req, res) => {
         );
         res.status(201).json({ success: true });
     } catch (err) {
-        console.error("Error al registrar usuario:", err);
-        res.status(500).send('Error al registrar usuario');
+        console.error("Error al registrar:", err);
+        // CAMBIA ESTA LÍNEA TEMPORALMENTE:
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
