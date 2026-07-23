@@ -269,6 +269,7 @@ app.post('/register', async (req, res) => {
 });
 
 // Ruta corregida usando 'db' y la tabla 'usuarios'
+// Ruta usando la API HTTP de Brevo (Instantánea y sin bloqueos en Render)
 app.post('/solicitar-codigo', async (req, res) => {
     const { username } = req.body;
     try {
@@ -277,23 +278,37 @@ app.post('/solicitar-codigo', async (req, res) => {
             return res.json({ success: false, message: "Usuario no encontrado" });
         }
 
+        const emailDestino = userResult.rows[0].email;
+        if (!emailDestino) {
+            return res.json({ success: false, message: "El usuario no tiene un correo asociado" });
+        }
+
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // Intentamos enviar el correo de forma segura con Nodemailer
-        try {
-            await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
-            to: userResult.rows[0].email,
-            subject: 'Código de recuperación - Booty Gym',
-            text: `Hola, tu código de recuperación es: ${codigo}`
+        // Petición HTTP directa a la API de Brevo (funciona siempre al instante en Render)
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.EMAIL_PASS, // Usamos tu clave SMTP/API de Brevo
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { name: "Booty Gym Sistema", email: process.env.EMAIL_FROM },
+                to: [{ email: emailDestino }],
+                subject: 'Código de recuperación - Booty Gym',
+                textContent: `Hola, tu código de recuperación es: ${codigo}`
+            })
         });
-        } catch (mailError) {
-            console.error("Advertencia de correo (Render bloqueó SMTP):", mailError.message);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error de Brevo API:", errorData);
+            return res.status(500).json({ success: false, message: "Error al enviar el correo" });
         }
 
-        console.log(`--- CÓDIGO DE RECUPERACIÓN PARA ${username}: ${codigo} ---`);
-        res.json({ success: true, message: "Código generado con éxito. Revisa tu correo o los registros." });
+        res.json({ success: true, message: "Código enviado con éxito a tu correo." });
     } catch (err) {
         console.error("Error al solicitar código:", err);
         res.status(500).json({ success: false, message: "Error interno del servidor" });
