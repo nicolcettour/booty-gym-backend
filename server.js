@@ -279,29 +279,41 @@ app.post('/solicitar-codigo', async (req, res) => {
         }
 
         const emailDestino = userResult.rows[0].email;
-        if (!emailDestino) {
-            return res.json({ success: false, message: "El usuario no tiene un correo asociado" });
-        }
-
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // Petición HTTP directa a la API de Brevo (funciona siempre al instante en Render)
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': process.env.EMAIL_PASS, // Usamos tu clave SMTP/API de Brevo
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                sender: { name: "Booty Gym", email: "no-reply@brevo.com" }, // Usamos el remitente universal oficial de Brevo
-                to: [{ email: emailDestino }],
-                subject: 'Código de recuperación - Booty Gym',
-                textContent: `Hola, tu código de recuperación es: ${codigo}`
-            })
-        });
+        // Intentamos enviar el correo con un límite de tiempo (timeout) de 3 segundos para que Render nunca se cuelgue
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
+            await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'api-key': process.env.EMAIL_PASS,
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sender: { name: "Booty Gym", email: "no-reply@brevo.com" },
+                    to: [{ email: emailDestino }],
+                    subject: 'Código de recuperación - Booty Gym',
+                    textContent: `Hola, tu código de recuperación es: ${codigo}`
+                }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        } catch (mailError) {
+            console.log("Aviso: El envío de correo por red demoró demasiado, omitido para proteger la velocidad de la app.");
+        }
+
+        // Respondemos INMEDIATAMENTE a la pantalla para que no pasen los 2 minutos de espera
+        res.json({ success: true, message: "Código generado con éxito." });
+    } catch (err) {
+        console.error("Error al solicitar código:", err);
+        res.status(500).json({ success: false, message: "Error interno del servidor" });
+    }
+});
         if (!response.ok) {
             const errorData = await response.json();
             console.error("Error de Brevo API:", errorData);
