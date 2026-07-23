@@ -21,7 +21,7 @@ window.GymApp.login = {
         `;
     },
 
-    iniciarRecuperacion: function() {
+iniciarRecuperacion: function() {
         const user = document.getElementById('login-user').value;
         if (!user) return alert("Por favor, ingresa tu usuario arriba primero.");
         
@@ -33,18 +33,18 @@ window.GymApp.login = {
             if (data.success) {
                 const container = document.getElementById('login-container');
                 container.innerHTML = `
-                    <h2 style="color:#ff9a8b;">Verificación</h2>
-                    <p style="font-size:0.9em; color:white;">Ingresa el código enviado a tu email:</p>
-                    <input type="text" id="rec-codigo" placeholder="Código de 6 dígitos" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:1px solid #333; background:#111; color:#fff;">
-                    <input type="password" id="rec-new-pass" placeholder="Nueva contraseña" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:1px solid #333; background:#111; color:#fff;">
-                    <button onclick="window.GymApp.login.finalizarRecuperacion('${user}')" style="width:100%; padding:10px; background:#ff9a8b; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">CAMBIAR CONTRASEÑA</button>
+                    ${window.GymApp.renderLogo()}
+                    <h2 style="color: #ff9a8b; margin-bottom: 20px;">Verificación</h2>
+                    <p style="font-size: 0.9em; color: white; margin-bottom: 15px;">Ingresa el código enviado a tu email o revisa los registros del servidor:</p>
+                    <input type="text" id="rec-codigo" placeholder="Código de 6 dígitos" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
+                    <input type="password" id="rec-new-pass" placeholder="Nueva contraseña" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
+                    <button onclick="window.GymApp.login.finalizarRecuperacion('${user}')" style="width: 100%; padding: 10px; background: #ff9a8b; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: black;">CAMBIAR CONTRASEÑA</button>
                 `;
             } else {
                 alert("Usuario no encontrado");
             }
         }).catch(() => alert("Error al conectar con el servidor"));
     },
-
     finalizarRecuperacion: async function(username) {
         const codigo = document.getElementById('rec-codigo').value;
         const nuevaPass = document.getElementById('rec-new-pass').value;
