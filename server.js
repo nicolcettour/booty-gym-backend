@@ -295,7 +295,7 @@ app.post('/solicitar-codigo', async (req, res) => {
                 'content-type': 'application/json'
             },
             body: JSON.stringify({
-                sender: { name: "Booty Gym Sistema", email: process.env.EMAIL_FROM },
+                sender: { name: "Booty Gym", email: "no-reply@brevo.com" }, // Usamos el remitente universal oficial de Brevo
                 to: [{ email: emailDestino }],
                 subject: 'Código de recuperación - Booty Gym',
                 textContent: `Hola, tu código de recuperación es: ${codigo}`
