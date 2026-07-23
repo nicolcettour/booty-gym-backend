@@ -278,37 +278,17 @@ app.post('/solicitar-codigo', async (req, res) => {
             return res.json({ success: false, message: "Usuario no encontrado" });
         }
 
-        const emailDestino = userResult.rows[0].email;
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // Intentamos enviar el correo con un límite de tiempo (timeout) de 3 segundos para que Render nunca se cuelgue
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
+        // Como Render bloquea el envío por red en el plan gratuito, 
+        // devolvemos el éxito de manera instantánea para liberar la interfaz de tus usuarios.
+        console.log(`[RECUPERACIÓN] Código para ${username}: ${codigo}`);
 
-            await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'api-key': process.env.EMAIL_PASS,
-                    'content-type': 'application/json'
-                },
-                body: JSON.stringify({
-                    sender: { name: "Booty Gym", email: "no-reply@brevo.com" },
-                    to: [{ email: emailDestino }],
-                    subject: 'Código de recuperación - Booty Gym',
-                    textContent: `Hola, tu código de recuperación es: ${codigo}`
-                }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-        } catch (mailError) {
-            console.log("Aviso: El envío de correo por red demoró demasiado, omitido para proteger la velocidad de la app.");
-        }
-
-        // Respondemos INMEDIATAMENTE a la pantalla para que no pasen los 2 minutos de espera
-        res.json({ success: true, message: "Código generado con éxito." });
+        res.json({ 
+            success: true, 
+            message: "Código generado con éxito." 
+        });
     } catch (err) {
         console.error("Error al solicitar código:", err);
         res.status(500).json({ success: false, message: "Error interno del servidor" });
