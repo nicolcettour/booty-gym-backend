@@ -8,15 +8,14 @@
 <body>
     <div id="sidebar" style="display: none;">
         <h1>BOOTY GYM</h1>
-       <nav>
+        <nav>
             <ul>
                 <li onclick="window.GymApp.cambiarVista('CLIENTAS')">CLIENTAS</li>
                 <li onclick="window.GymApp.cambiarVista('RUTINAS')">CONTROL DE HORARIOS</li>
                 <li onclick="window.GymApp.cambiarVista('PAGOS')">CONTROL DE PAGOS</li>
                 <li onclick="window.GymApp.cambiarVista('BOOTY')">BOOTY CLUB</li>
                 
-                <!-- ESTA ES LA LÍNEA QUE FALTA AGREGAR -->
-                <div id="user-display" style="margin: 15px 0; color: #ff9a8b; text-align: center; font-weight: bold; font-size: 0.9em;"></div>
+                <li id="user-display" style="margin: 15px 0; color: #ff9a8b; text-align: center; font-weight: bold; font-size: 0.9em; list-style: none; cursor: default;"></li>
                 
                 <li onclick="window.GymApp.login.logout()" style="margin-top: 5px; color: #ff9a8b; border: 1px solid #ff9a8b; border-radius: 5px; cursor: pointer; text-align: center; padding: 5px;">CERRAR SESIÓN</li>
             </ul>
