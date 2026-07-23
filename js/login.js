@@ -64,10 +64,10 @@ iniciarRecuperacion: function() {
         }
     },
 
-    registrar: async function() {
+registrar: async function() {
         const user = document.getElementById('login-user').value;
         const pass = document.getElementById('login-pass').value;
-        const email = document.getElementById('reg-email').value; // CORREGIDO
+        const email = document.getElementById('reg-email').value;
         
         if (!user || !pass || !email) return alert("Completa usuario, contraseña y email");
 
@@ -75,12 +75,16 @@ iniciarRecuperacion: function() {
             const response = await fetch('https://booty-gym-backend.onrender.com/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user, pass, email }) // CORREGIDO
+                body: JSON.stringify({ user, pass, email })
             });
-            if (response.ok) {
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
                 alert("Administrador creado correctamente");
             } else {
-                alert("Error al registrar");
+                // AQUÍ ESTÁ EL CAMBIO: Ahora la alerta te mostrará el error exacto que devuelve el servidor
+                alert("Error al registrar: " + (data.message || data.error || "Desconocido"));
             }
         } catch (err) { 
             alert("Error al conectar con el servidor"); 
