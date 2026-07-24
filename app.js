@@ -118,4 +118,24 @@ window.addEventListener('load', () => {
             userDisplay.innerText = "Admin: " + admin;
         }
     }
-});
+});// Agrega esto en tu app.js para que el botón funcione de verdad:
+async function solicitarCodigoRecuperacion(username) {
+    try {
+        const respuesta = await fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username })
+        });
+
+        const resultado = await respuesta.json();
+        
+        if (resultado.success) {
+            alert("¡Código generado con éxito! Revisa la consola de tu servidor en Render para ver el código.");
+            // Aquí puedes cambiar de pantalla para que el usuario ingrese el código
+        } else {
+            alert(resultado.message);
+        }
+    } catch (error) {
+        console.error("Error al conectar con el servidor:", error);
+    }
+}
