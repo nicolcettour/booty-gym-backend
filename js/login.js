@@ -22,28 +22,54 @@ window.GymApp.login = {
     },
 
 iniciarRecuperacion: function() {
-        const user = document.getElementById('login-user').value;
-        if (!user) return alert("Por favor, ingresa tu usuario arriba primero.");
-        
-        fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user })
-        }).then(res => res.json()).then(data => {
-            if (data.success) {
-                const container = document.getElementById('login-container');
-                container.innerHTML = `
-                    ${window.GymApp.renderLogo()}
-                    <h2 style="color: #ff9a8b; margin-bottom: 20px;">Verificación</h2>
-                    <p style="font-size: 0.9em; color: white; margin-bottom: 15px;">Ingresa el código enviado a tu email o revisa los registros del servidor:</p>
-                    <input type="text" id="rec-codigo" placeholder="Código de 6 dígitos" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
-                    <input type="password" id="rec-new-pass" placeholder="Nueva contraseña" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
-                    <button onclick="window.GymApp.login.finalizarRecuperacion('${user}')" style="width: 100%; padding: 10px; background: #ff9a8b; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: black;">CAMBIAR CONTRASEÑA</button>
-                `;
-            } else {
-                alert("Usuario no encontrado");
-            }
-        }).catch(() => alert("Error al conectar con el servidor"));
+    console.log("1. Se hizo clic en recuperar contraseña");
+    
+    const inputUser = document.getElementById('login-user');
+    if (!inputUser) {
+        alert("ERROR: No se encontró el campo de usuario en la pantalla.");
+        return;
+    }
+    
+    const user = inputUser.value;
+    console.log("2. Usuario obtenido:", user);
+
+    if (!user) {
+        alert("Por favor, ingresa tu usuario arriba primero.");
+        return;
+    }
+    
+    console.log("3. Intentando conectar con Render...");
+    
+    fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user })
+    })
+    .then(res => {
+        console.log("4. Respuesta recibida del servidor");
+        return res.json();
+    })
+    .then(data => {
+        console.log("5. Datos procesados:", data);
+        if (data.success) {
+            const container = document.getElementById('login-container');
+            container.innerHTML = `
+                ${window.GymApp.renderLogo()}
+                <h2 style="color: #ff9a8b; margin-bottom: 20px;">Verificación</h2>
+                <p style="font-size: 0.9em; color: white; margin-bottom: 15px;">Ingresa el código enviado o revisa la consola de Render:</p>
+                <input type="text" id="rec-codigo" placeholder="Código de 6 dígitos" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
+                <input type="password" id="rec-new-pass" placeholder="Nueva contraseña" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
+                <button onclick="window.GymApp.login.finalizarRecuperacion('${user}')" style="width: 100%; padding: 10px; background: #ff9a8b; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: black;">CAMBIAR CONTRASEÑA</button>
+            `;
+        } else {
+            alert("El servidor dijo: " + (data.message || "Usuario no encontrado"));
+        }
+    })
+    .catch(err => {
+        console.error("6. Error en el fetch:", err);
+        alert("Error crítico al conectar con el servidor de Render.");
+    });
+},
     },
     finalizarRecuperacion: async function(username) {
         const codigo = document.getElementById('rec-codigo').value;
