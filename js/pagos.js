@@ -31,11 +31,12 @@ window.GymApp.pagos = {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
-            // Sincronizamos los pagos del mes corriente para saber quién ya pagó
-            const resPagos = await fetch('https://booty-gym-backend.onrender.com/pagos');
+            // Sincronizamos los pagos del mes corriente enviando también el gym_id para filtrar correctamente
+            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
+            const resPagos = await fetch(urlPagos);
             window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-            // --- NUEVO: SINCRONIZAR CONFIGURACIÓN DESDE POSTGRESQL AL CARGAR VISTA DE PAGOS ---
+            // --- SINCRONIZAR CONFIGURACIÓN DESDE POSTGRESQL AL CARGAR VISTA DE PAGOS ---
             const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
@@ -102,6 +103,7 @@ window.GymApp.pagos = {
 
     registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
+        const gymId = localStorage.getItem('gym_id');
         
         // Bloqueamos el botón inmediatamente para evitar múltiples clics
         if (botonElement) {
@@ -116,6 +118,7 @@ window.GymApp.pagos = {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
+                    gym_id: gymId,
                     clienta_id: clienta.id,
                     monto: monto,
                     mes: new Date().getMonth() + 1,
@@ -126,7 +129,7 @@ window.GymApp.pagos = {
 
             if (response.ok) {
                 alert("Pago registrado exitosamente");
-                this.actualizarLista(); // Refresca la lista y muestra el mes corriente actualizado
+                this.actualizarLista();
             } else {
                 alert("Error al registrar el pago en el servidor.");
                 if (botonElement) {
@@ -150,7 +153,9 @@ window.GymApp.pagos = {
 
     verHistorial: async function() {
         try {
-            const response = await fetch('https://booty-gym-backend.onrender.com/pagos/agrupados');
+            const gymId = localStorage.getItem('gym_id');
+            const urlHistorial = gymId ? `https://booty-gym-backend.onrender.com/pagos/agrupados?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos/agrupados';
+            const response = await fetch(urlHistorial);
             const data = await response.json();
             window.GymApp.tempData = data;
 
