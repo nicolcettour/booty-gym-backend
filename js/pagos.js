@@ -31,10 +31,10 @@ window.GymApp.pagos = {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
-            // Sincronizamos los pagos del mes corriente enviando también el gym_id para filtrar correctamente
-            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
-            const resPagos = await fetch(urlPagos);
-            window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
+// Sincronizamos los pagos del mes corriente enviando el gym_id
+const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
+const resPagos = await fetch(urlPagos);
+window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
             // --- SINCRONIZAR CONFIGURACIÓN DESDE POSTGRESQL AL CARGAR VISTA DE PAGOS ---
             const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
