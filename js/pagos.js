@@ -101,7 +101,7 @@ window.GymApp.pagos = {
             </div>`;
     },
 
-    registrar: async function(i, monto, botonElement) {
+ registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         
@@ -114,24 +114,31 @@ window.GymApp.pagos = {
         }
 
         try {
+            const cuerpoPeticion = {
+                gym_id: gymId,
+                clienta_id: clienta.id,
+                monto: monto,
+                mes: new Date().getMonth() + 1,
+                anio: new Date().getFullYear(),
+                nombre_completo: `${clienta.nombre} ${clienta.apellido}`
+            };
+
+            console.log("Enviando datos de pago:", cuerpoPeticion);
+
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    gym_id: gymId,
-                    clienta_id: clienta.id,
-                    monto: monto,
-                    mes: new Date().getMonth() + 1,
-                    anio: new Date().getFullYear(),
-                    nombre_completo: `${clienta.nombre} ${clienta.apellido}`
-                })
+                body: JSON.stringify(cuerpoPeticion)
             });
+
+            const textoRespuesta = await response.text();
+            console.log("Respuesta del servidor:", textoRespuesta);
 
             if (response.ok) {
                 alert("Pago registrado exitosamente");
                 this.actualizarLista();
             } else {
-                alert("Error al registrar el pago en el servidor.");
+                alert(`Error del servidor (${response.status}): ${textoRespuesta}`);
                 if (botonElement) {
                     botonElement.disabled = false;
                     botonElement.innerText = "Registrar";
@@ -140,7 +147,7 @@ window.GymApp.pagos = {
                 }
             }
         } catch (e) {
-            console.error("Error:", e);
+            console.error("Error de red:", e);
             alert("No se pudo conectar con el servidor.");
             if (botonElement) {
                 botonElement.disabled = false;
