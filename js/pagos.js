@@ -71,12 +71,19 @@ window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
         let montoBase = Number(configPagos.montoCuota);
         let montoConInteres = montoBase + (montoBase * (configPagos.interesPorcentaje / 100));
 
-        ul.innerHTML = clientas.map((c, i) => {
-            // Verificamos si esta clienta ya tiene un pago registrado en el mes y año actual
+ul.innerHTML = clientas.map((c, i) => {
+            // Verificamos de forma segura si la clienta ya pagó este mes y año
             const pagoEncontrado = pagosRegistrados.find(p => {
-                const fechaP = new Date(p.fecha_pago);
-                return p.clienta_id === c.id && 
-                       (p.mes === mesActual || (fechaP.getMonth() + 1 === mesActual && fechaP.getFullYear() === anioActual));
+                if (p.clienta_id !== c.id) return false;
+                
+                // Si el pago tiene fecha de pago, la analizamos
+                if (p.fecha_pago) {
+                    const fechaP = new Date(p.fecha_pago);
+                    return (fechaP.getMonth() + 1) === mesActual && fechaP.getFullYear() === anioActual;
+                }
+                
+                // Como respaldo, si usa el campo numérico 'mes' y 'anio'
+                return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
             });
 
             if (pagoEncontrado) {
