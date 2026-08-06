@@ -29,7 +29,7 @@ window.GymApp.bootyclub = {
                 <h2 style="text-align:center; color: #ff9a8b;">BOOTY CLUB</h2>
                 <div class="card-gradient">
                     <h3>Beneficiarias Activas</h3>
-                    <div id="lista-beneficiarias"></div>
+                    <div id="lista-beneficiarias">Cargando beneficiarias...</div>
                 </div>
                 <div class="card-gradient">
                     <h3>BENEFICIOS</h3>
@@ -92,34 +92,50 @@ window.GymApp.bootyclub = {
         this.actualizarGaleria();
     },
 
-    renderizarListasBooty: function() {
+    renderizarListasBooty: async function() {
         const contenedor = document.getElementById('lista-beneficiarias');
         if (!contenedor) return;
 
-        const hoy = new Date();
-        const mesActual = hoy.getMonth();
-        const anioActual = hoy.getFullYear();
-        
-        const listaClientas = window.GymApp.config.clientas || [];
-        
-        const beneficiarias = listaClientas.filter(c => {
-            if (c.estadoPago !== 'Pagado' || !c.fechaPago) return false;
+        try {
+            const gymId = localStorage.getItem('gym_id');
+            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             
-            const fechaPago = new Date(c.fechaPago);
+            const res = await fetch(urlPagos);
+            if (!res.ok) throw new Error("Error al obtener pagos");
+            const todosLosPagos = await res.json();
             
-            const esMismoMes = fechaPago.getMonth() === mesActual;
-            const esMismoAnio = fechaPago.getFullYear() === anioActual;
-            
-            return esMismoMes && esMismoAnio;
-        });
-        
-        contenedor.innerHTML = beneficiarias.length > 0 
-            ? beneficiarias.map(c => `
-                <div class="beneficiaria-item">
-                    <span class="badge">ACTIVA</span>
-                    <span>${c.nombre} ${c.apellido || ''}</span>
-                </div>
-            `).join('') 
-            : '<p style="color:#bbb; text-align:center;">No hay clientas activas este mes.</p>';
+            const hoy = new Date();
+            const mesActual = hoy.getMonth() + 1;
+            const anioActual = hoy.getFullYear();
+
+            // Filtramos pagos del mes actual realizados entre el día 1 y 10
+            const beneficiarias = todosLosPagos.filter(p => {
+                const fechaP = new Date(p.fecha_pago || p.created_at);
+                return (fechaP.getMonth() + 1) === mesActual && 
+                       fechaP.getFullYear() === anioActual && 
+                       fechaP.getDate() >= 1 && fechaP.getDate() <= 10;
+            });
+
+            // Usamos un objeto para evitar que una clienta aparezca dos veces si hizo pagos repetidos
+            const unicas = {};
+            beneficiarias.forEach(p => {
+                if (p.clienta_id) unicas[p.clienta_id] = p.nombre_completo || 'Clienta';
+            });
+
+            const listaNombres = Object.values(unicas);
+
+            contenedor.innerHTML = listaNombres.length > 0 
+                ? listaNombres.map(nombre => `
+                    <div class="beneficiaria-item">
+                        <span class="badge">ACTIVA</span>
+                        <span>${nombre}</span>
+                    </div>
+                `).join('') 
+                : '<p style="color:#bbb; text-align:center;">No hay clientas activas este mes (abonaron del 1 al 10).</p>';
+
+        } catch (e) {
+            console.error("Error al cargar beneficiarias:", e);
+            contenedor.innerHTML = '<p style="color:#bbb; text-align:center;">Error al cargar datos.</p>';
+        }
     }
 };
