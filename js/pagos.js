@@ -74,6 +74,11 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id');
+            const usuarioActual = localStorage.getItem('admin_user') || 'default';
+            
+            // Nueva clave única: combina el gimnasio y el usuario para que no se pisen
+            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
+            
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             
             const res = await fetch(url);
@@ -86,19 +91,19 @@ window.GymApp.pagos = {
             const todosLosPagos = await res.json();
             
             const hoy = new Date();
-            const anio = hoy.getFullYear();
-            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoy.getDate()).padStart(2, '0');
-            const hoyStr = `${anio}-${mes}-${dia}`;
+            const hoyStr = hoy.toISOString().substring(0, 10);
 
-            // Control de último cierre para reiniciar caja a 0 para el nuevo usuario
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+            // Obtenemos el cierre específico de este usuario
+            const ultimoCierre = localStorage.getItem(claveCierre) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
+                
+                // Filtramos por fecha de hoy y por si es posterior al último cierre PERSONAL de este usuario
                 const esHoy = fechaBruta.substring(0, 10) === hoyStr;
                 const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                
                 return esHoy && esPosteriorAlCierre;
             });
             
@@ -415,7 +420,8 @@ window.GymApp.pagos = {
             ventanaCierre.document.close();
 
             // Guardamos el timestamp actual para que la caja chica posterior inicie en 0 para el siguiente usuario
-            localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
+           const usuarioActual = localStorage.getItem('admin_user') || 'default';
+localStorage.setItem(`caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`, Date.now());
             this.cargarCajaChicaDia();
 
         } catch (e) {
