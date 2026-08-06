@@ -4,44 +4,62 @@ window.GymApp.pagos = {
     renderizarInterfaz: function() {
         const usuarioActual = localStorage.getItem('admin_user');
         const esAdminPrincipal = (usuarioActual === 'Priscila.admin');
+    },
 
-async cargarCajaChicaDia() {
-    const contenedor = document.getElementById('caja-chica-contenido');
-    if (!contenedor) return;
+    cargarCajaChicaDia: async function() {
+        const contenedorCaja = document.getElementById('caja-chica-contenido');
+        if (!contenedorCaja) return;
 
-    try {
-        const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-        const response = await fetch(`https://tu-backend.onrender.com/caja-chica?gym_id=${gymId}`);
-        
-        if (!response.ok) throw new Error('Error al obtener la caja chica');
-        
-        const movimientos = await response.json();
-
-        if (movimientos.length === 0) {
-            contenedor.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay pagos registrados el día de hoy.</p>`;
-            return;
-        }
-
-        // Construimos la lista visual dentro del contenedor
-        let html = `<ul style="list-style:none; padding:0; margin:0;">`;
-        movimientos.forEach(p => {
-            // Formateamos la hora a un formato legible (ej: 14:35)
-            const hora = new Date(p.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        try {
+            const gymId = localStorage.getItem('gym_id');
+            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
             
-            html += `
-                <li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-                    <span><b>${p.nombre_completo}</b> <small style="color:#aaa;">(${p.usuario_registro || 'Admin'})</small></span>
-                    <span><span style="color:#ff9a8b; font-weight:bold;">$${p.monto}</span> <small style="color:#888; margin-left:8px;">${hora}</small></span>
-                </li>`;
-        });
-        html += `</ul>`;
+            // Petición para obtener los movimientos de caja del día actual
+            const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/caja-chica';
+            const res = await fetch(url);
+            
+            if (!res.ok) {
+                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
+                return;
+            }
 
-        contenedor.innerHTML = html;
-    } catch (err) {
-        console.error("Error cargando caja chica:", err);
-        contenedor.innerHTML = `<p style="color:#ff6b6b; text-align:center; margin:5px 0;">Error al cargar los movimientos.</p>`;
-    }
-}
+            const movimientos = await res.json();
+            
+            if (movimientos.length === 0) {
+                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros registrados en la caja chica hoy.</p>`;
+                return;
+            }
+
+            let totalCajaDia = 0;
+            let htmlMovs = `<ul style="list-style:none; padding:0; margin:0;">`;
+
+            movimientos.forEach(m => {
+                totalCajaDia += Number(m.monto);
+                // Formateamos la hora del registro
+                const horaStr = m.fecha_pago ? new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente';
+                const cobradoPor = m.usuario_registro || usuarioActual;
+
+                htmlMovs += `
+                    <li style="padding:6px 0; border-bottom:1px dashed #444; display:flex; justify-content:space-between; align-items:center;">
+                        <span>👤 <strong>${m.nombre_completo}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
+                        <span style="color:#4caf50; font-weight:bold;">$${m.monto}</span>
+                    </li>`;
+            });
+
+            htmlMovs += `</ul>
+                <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
+                    <span>Total en Caja Chica Hoy:</span>
+                    <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
+                </div>`;
+
+            contenedorCaja.innerHTML = htmlMovs;
+
+        } catch (e) {
+            console.error("Error al cargar caja chica:", e);
+            contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
+        }
+    },
+
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
@@ -129,60 +147,6 @@ async cargarCajaChicaDia() {
         }
     },
 
-    cargarCajaChicaDia: async function() {
-        const contenedorCaja = document.getElementById('caja-chica-contenido');
-        if (!contenedorCaja) return;
-
-        try {
-            const gymId = localStorage.getItem('gym_id');
-            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
-            
-            // Petición para obtener los movimientos de caja del día actual
-            const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/caja-chica';
-            const res = await fetch(url);
-            
-            if (!res.ok) {
-                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
-                return;
-            }
-
-            const movimientos = await res.json();
-            
-            if (movimientos.length === 0) {
-                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros registrados en la caja chica hoy.</p>`;
-                return;
-            }
-
-            let totalCajaDia = 0;
-            let htmlMovs = `<ul style="list-style:none; padding:0; margin:0;">`;
-
-            movimientos.forEach(m => {
-                totalCajaDia += Number(m.monto);
-                // Formateamos la hora del registro
-                const horaStr = m.fecha_pago ? new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente';
-                const cobradoPor = m.usuario_registro || usuarioActual;
-
-                htmlMovs += `
-                    <li style="padding:6px 0; border-bottom:1px dashed #444; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 <strong>${m.nombre_completo}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
-                        <span style="color:#4caf50; font-weight:bold;">$${m.monto}</span>
-                    </li>`;
-            });
-
-            htmlMovs += `</ul>
-                <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
-                    <span>Total en Caja Chica Hoy:</span>
-                    <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
-                </div>`;
-
-            contenedorCaja.innerHTML = htmlMovs;
-
-        } catch (e) {
-            console.error("Error al cargar caja chica:", e);
-            contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
-        }
-    },
-
     registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
@@ -203,7 +167,7 @@ async cargarCajaChicaDia() {
                 mes: new Date().getMonth() + 1,
                 anio: new Date().getFullYear(),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-                usuario_registro: usuarioActual // Enviamos quién está realizando el cobro
+                usuario_registro: usuarioActual
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -242,7 +206,6 @@ async cargarCajaChicaDia() {
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
         const fechaHoy = new Date().toLocaleDateString();
 
-        // Creamos una ventana emergente limpia para imprimir o guardar el PDF del cierre de caja
         const ventanaCierre = window.open('', '_blank', 'width=600,height=600');
         ventanaCierre.document.write(`
             <html>
