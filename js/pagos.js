@@ -2,13 +2,21 @@ window.GymApp = window.GymApp || {};
 
 window.GymApp.pagos = {
     renderizarInterfaz: function() {
+        const usuarioActual = localStorage.getItem('admin_user');
+        const esAdminPrincipal = (usuarioActual === 'Priscila.admin');
+
         const main = document.getElementById('app');
         main.innerHTML = `
             ${window.GymApp.renderLogo()}
             <h2 style="color: #ff9a8b; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Control de Pagos</h2>
-            <div id="resumen-financiero" style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:10px; color: #fff; border: 1px solid #333;"></div>
+            
+            <!-- El resumen financiero solo se muestra si es Priscila.admin -->
+            <div id="resumen-financiero" style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:10px; color: #fff; border: 1px solid #333; ${esAdminPrincipal ? '' : 'display:none;'}"></div>
+            
             <div style="margin-bottom:10px;">
-                <button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer;">Registro de Pagos</button>
+                <!-- El botón de Registro de Pagos (historial) se oculta si no es admin principal -->
+                ${esAdminPrincipal ? '<button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer; margin-right: 10px;">Registro de Pagos</button>' : ''}
+                
                 <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer;">Configuración</button>
             </div>
             <div style="background: rgba(20,20,20,0.85); padding: 15px; border-radius: 15px; backdrop-filter: blur(8px); border: 1px solid #333;">
@@ -20,10 +28,9 @@ window.GymApp.pagos = {
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
-        if (!ul || !divResumen) return;
+        if (!ul) return;
 
         try {
-            // Sincronizamos clientas incluyendo el gym_id si está disponible
             const gymId = localStorage.getItem('gym_id');
             const urlClientas = gymId ? `https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}` : 'http://localhost:3000/clientas';
             const resClientas = await fetch(urlClientas);
@@ -31,12 +38,10 @@ window.GymApp.pagos = {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
-// Sincronizamos los pagos del mes corriente enviando el gym_id
-const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
-const resPagos = await fetch(urlPagos);
-window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
+            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
+            const resPagos = await fetch(urlPagos);
+            window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-            // --- SINCRONIZAR CONFIGURACIÓN DESDE POSTGRESQL AL CARGAR VISTA DE PAGOS ---
             const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
@@ -51,7 +56,6 @@ window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
         const clientas = window.GymApp.config.clientas || [];
 
-        // --- ORDENAR ALFABÉTICAMENTE DE LA A A LA Z ---
         clientas.sort((a, b) => {
             const nombreA = `${a.nombre} ${a.apellido}`.toLowerCase();
             const nombreB = `${b.nombre} ${b.apellido}`.toLowerCase();
@@ -71,18 +75,13 @@ window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
         let montoBase = Number(configPagos.montoCuota);
         let montoConInteres = montoBase + (montoBase * (configPagos.interesPorcentaje / 100));
 
-ul.innerHTML = clientas.map((c, i) => {
-            // Verificamos de forma segura si la clienta ya pagó este mes y año
+        ul.innerHTML = clientas.map((c, i) => {
             const pagoEncontrado = pagosRegistrados.find(p => {
                 if (p.clienta_id !== c.id) return false;
-                
-                // Si el pago tiene fecha de pago, la analizamos
                 if (p.fecha_pago) {
                     const fechaP = new Date(p.fecha_pago);
                     return (fechaP.getMonth() + 1) === mesActual && fechaP.getFullYear() === anioActual;
                 }
-                
-                // Como respaldo, si usa el campo numérico 'mes' y 'anio'
                 return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
             });
 
@@ -101,18 +100,23 @@ ul.innerHTML = clientas.map((c, i) => {
             }
         }).join('');
 
-        divResumen.innerHTML = `
-            <div style="display:flex; justify-content:space-around;">
-                <p><strong>Total Cobrado:</strong> <span style="color:#4caf50; font-size:1.2em;">$${totalCobrado}</span></p>
-                <p><strong>Total Adeudado:</strong> <span style="color:#ff4757; font-size:1.2em;">$${Math.round(totalAdeudado)}</span></p>
-            </div>`;
+        // Solo actualizamos el resumen si el div existe y el usuario es el admin principal
+        if (divResumen) {
+            const usuarioActual = localStorage.getItem('admin_user');
+            if (usuarioActual === 'Priscila.admin') {
+                divResumen.innerHTML = `
+                    <div style="display:flex; justify-content:space-around;">
+                        <p><strong>Total Cobrado:</strong> <span style="color:#4caf50; font-size:1.2em;">$${totalCobrado}</span></p>
+                        <p><strong>Total Adeudado:</strong> <span style="color:#ff4757; font-size:1.2em;">$${Math.round(totalAdeudado)}</span></p>
+                    </div>`;
+            }
+        }
     },
 
- registrar: async function(i, monto, botonElement) {
+    registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         
-        // Bloqueamos el botón inmediatamente para evitar múltiples clics
         if (botonElement) {
             botonElement.disabled = true;
             botonElement.innerText = "Registrando...";
@@ -130,8 +134,6 @@ ul.innerHTML = clientas.map((c, i) => {
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`
             };
 
-            console.log("Enviando datos de pago:", cuerpoPeticion);
-
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -139,7 +141,6 @@ ul.innerHTML = clientas.map((c, i) => {
             });
 
             const textoRespuesta = await response.text();
-            console.log("Respuesta del servidor:", textoRespuesta);
 
             if (response.ok) {
                 alert("Pago registrado exitosamente");
@@ -166,6 +167,14 @@ ul.innerHTML = clientas.map((c, i) => {
     },
 
     verHistorial: async function() {
+        // Bloqueo adicional por seguridad si intentan entrar por URL o consola
+        const usuarioActual = localStorage.getItem('admin_user');
+        if (usuarioActual !== 'Priscila.admin') {
+            alert("No tienes permisos para ver el registro histórico.");
+            window.GymApp.cambiarVista('PAGOS');
+            return;
+        }
+
         try {
             const gymId = localStorage.getItem('gym_id');
             const urlHistorial = gymId ? `https://booty-gym-backend.onrender.com/pagos/agrupados?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos/agrupados';
@@ -200,8 +209,8 @@ ul.innerHTML = clientas.map((c, i) => {
                 nombresMeses.forEach((nombre, index) => {
                     const mesNum = index + 1;
                     html += `<button onclick="window.GymApp.pagos.mostrarDetalleMes('${anio}', ${mesNum}, '${nombre}')" 
-                                style="padding:10px; background:#333; color:#ff9a8b; border:1px solid #ff9a8b; border-radius:5px; cursor:pointer; font-weight:bold;">
-                                ${nombre}
+                            style="padding:10px; background:#333; color:#ff9a8b; border:1px solid #ff9a8b; border-radius:5px; cursor:pointer; font-weight:bold;">
+                            ${nombre}
                            </button>`;
                 });
                 html += `</div></div>`;
@@ -211,9 +220,11 @@ ul.innerHTML = clientas.map((c, i) => {
     },
 
     mostrarDetalleMes: function(anio, mes, nombreMes) {
+        const usuarioActual = localStorage.getItem('admin_user');
+        if (usuarioActual !== 'Priscila.admin') return;
+
         const pagos = window.GymApp.tempData.filter(p => p.anio == anio && p.mes == mes);
         
-        // --- ORDENAR ALFABÉTICAMENTE EL HISTORIAL DE LA A A LA Z ---
         pagos.sort((a, b) => {
             const nombreA = (a.nombre_completo || "").toLowerCase();
             const nombreB = (b.nombre_completo || "").toLowerCase();
