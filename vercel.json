@@ -8,8 +8,12 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "^/(clientas|pagos|caja-chica|config|login|register|solicitar-codigo|verificar-y-cambiar)(/.*)?$",
       "dest": "server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }
