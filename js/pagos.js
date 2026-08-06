@@ -68,46 +68,40 @@ window.GymApp.pagos = {
         }
     },
 
-    cargarCajaChicaDia: async function() {
+   cargarCajaChicaDia: async function() {
         const contenido = document.getElementById('caja-chica-contenido');
         if (!contenido) return;
 
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'default';
-            
-            // Clave única por gimnasio y usuario activo
             const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
-            
             const res = await fetch(url);
-            if (!res.ok) {
-                contenido.style.display = 'block';
-                contenido.innerHTML = '<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al cargar movimientos.</p>';
-                return;
-            }
-
             const todosLosPagos = await res.json();
             
+            // Obtener fecha actual en formato YYYY-MM-DD (UTC para coincidir con backend)
             const hoy = new Date();
             const hoyStr = hoy.toISOString().substring(0, 10);
-
-            // Obtiene el timestamp del último cierre de este usuario específico
-            const ultimoCierre = localStorage.getItem(claveCierre) || 0;
+            
+            // Obtenemos el cierre, si no existe usamos 0
+            const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
                 
-                const esHoy = fechaBruta.substring(0, 10) === hoyStr;
-                const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                const fechaMov = new Date(fechaBruta);
+                const fechaMovStr = fechaMov.toISOString().substring(0, 10);
                 
-                return esHoy && esPosteriorAlCierre;
+                // Filtro: Debe ser de hoy Y ser posterior al último cierre
+                // Sumamos 1 segundo de tolerancia al cierre para evitar errores de redondeo
+                return fechaMovStr === hoyStr && fechaMov.getTime() > (ultimoCierre - 1000);
             });
             
             if (movimientos.length === 0) {
-                contenido.innerHTML = '<p style="color:#aaa; text-align:center; margin:5px 0;">No hay movimientos hoy (Caja en $0.00).</p>';
+                contenido.innerHTML = '<p style="color:#aaa; text-align:center; margin:5px 0;">No hay movimientos nuevos.</p>';
                 return;
             }
 
@@ -118,32 +112,47 @@ window.GymApp.pagos = {
                 const montoNum = Number(m.monto) || 0;
                 totalDia += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const usuarioReg = m.usuario_registro && m.usuario_registro !== 'Admin' ? m.usuario_registro : usuarioActual;
-
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
                 htmlMovimientos += `
-                    <li style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
-                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${usuarioReg})</small></span>
+                    <li style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
+                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'}</span>
                         <span style="color: #4caf50; font-weight: bold;">$${montoNum.toFixed(2)}</span>
                     </li>
                 `;
             });
 
-            htmlMovimientos += '</ul>';
-            htmlMovimientos += `
-                <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-weight: bold;">
-                    <span>Total del Día:</span>
-                    <span style="color: #4caf50;">$${totalDia.toFixed(2)}</span>
-                </div>
-            `;
-
+            htmlMovimientos += `</ul><div style="margin-top:8px; border-top:1px solid #444; padding-top:5px; text-align:right; font-weight:bold;">Total: $${totalDia.toFixed(2)}</div>`;
             contenido.innerHTML = htmlMovimientos;
         } catch (e) {
-            console.error("Error al cargar caja chica:", e);
-            contenido.innerHTML = '<p style="color:#ff4757; text-align:center; margin:5px 0;">Error de red al cargar caja.</p>';
+            contenido.innerHTML = '<p style="color:#ff4757;">Error al cargar.</p>';
         }
     },
 
+    realizarCierreCaja: async function() {
+        // ... (todo el código anterior hasta el filtro de movimientos)
+        // REEMPLAZA SOLO EL FILTRO DENTRO DE realizarCierreCaja POR ESTE:
+        
+        const movimientos = todosLosPagos.filter(m => {
+            const fechaBruta = m.fecha_pago || m.created_at;
+            if (!fechaBruta) return false;
+            const fechaMov = new Date(fechaBruta);
+            const fechaMovStr = fechaMov.toISOString().substring(0, 10);
+            
+            return fechaMovStr === hoyStr && fechaMov.getTime() > (Number(ultimoCierre) - 1000);
+        });
+
+        if (movimientos.length === 0) {
+            alert("No hay nuevos pagos pendientes de cierre.");
+            return;
+        }
+        
+        // ... (resto del código del cierre normal)
+        
+        // IMPORTANTE: Al finalizar, guardamos el momento actual del servidor local
+        localStorage.setItem(claveCierre, Date.now());
+        this.cargarCajaChicaDia();
+    }
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
