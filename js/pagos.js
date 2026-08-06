@@ -2,8 +2,45 @@ window.GymApp = window.GymApp || {};
 
 window.GymApp.pagos = {
     renderizarInterfaz: function() {
+        const main = document.getElementById('app');
+        if (!main) return;
+
         const usuarioActual = localStorage.getItem('admin_user');
         const esAdminPrincipal = (usuarioActual === 'Priscila.admin');
+
+        main.innerHTML = `
+            ${window.GymApp.renderLogo()}
+            <div style="max-width: 650px; margin: 0 auto; background: rgba(20,20,20,0.85); padding: 20px; border-radius: 15px; border: 1px solid #333; color: white;">
+                <h2 style="text-align: center; color: #ff9a8b; margin-top: 0;">CONTROL DE PAGOS</h2>
+                
+                <!-- Caja Chica del Día -->
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid #ff9a8b; border-radius: 10px; padding: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: bold; color: #ff9a8b;">📦 Caja Chica del Día</span>
+                        <button onclick="window.GymApp.pagos.realizarCierreCaja()" style="background: #ff9a8b; color: black; border: none; padding: 5px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9em;">Cierre de Caja / PDF</button>
+                    </div>
+                    <div id="caja-chica-contenido">
+                        <p style="color:#aaa; text-align:center; margin:5px 0;">Cargando movimientos...</p>
+                    </div>
+                </div>
+
+                ${esAdminPrincipal ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Ver Historial de Pagos</button>
+                    <button onclick="window.GymApp.cambiarVista('CONFIG_PAGOS')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Configuración</button>
+                </div>` : ''}
+
+                <div id="resumen-financiero" style="margin-bottom: 15px;"></div>
+                
+                <ul id="ul-pagos" style="list-style: none; padding: 0; max-height: 400px; overflow-y: auto;">
+                    <p style="text-align:center; color:#aaa;">Cargando clientas...</p>
+                </ul>
+            </div>
+        `;
+
+        // Ejecutamos la carga de datos y de la caja chica
+        this.actualizarLista();
+        this.cargarCajaChicaDia();
     },
 
     cargarCajaChicaDia: async function() {
@@ -14,7 +51,6 @@ window.GymApp.pagos = {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
             
-            // Petición para obtener los movimientos de caja del día actual
             const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/caja-chica';
             const res = await fetch(url);
             
@@ -35,7 +71,6 @@ window.GymApp.pagos = {
 
             movimientos.forEach(m => {
                 totalCajaDia += Number(m.monto);
-                // Formateamos la hora del registro
                 const horaStr = m.fecha_pago ? new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente';
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
