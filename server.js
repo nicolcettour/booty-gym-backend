@@ -336,6 +336,9 @@ app.post('/verificar-y-cambiar', async (req, res) => {
         res.status(500).send('Error al cambiar contraseña');
     }
 });
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
+}
+
+module.exports = app;
