@@ -68,20 +68,72 @@ window.GymApp.pagos = {
         }
     },
 
-   // ... (código anterior igual)
-            const ultimoCierre = Number(localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general'))) || 0;
+    cargarCajaChicaDia: async function() {
+        const contenido = document.getElementById('caja-chica-contenido');
+        if (!contenido) return;
+
+        try {
+            const gymId = localStorage.getItem('gym_id');
+            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
+            
+            const res = await fetch(url);
+            if (!res.ok) {
+                contenido.style.display = 'block';
+                contenido.innerHTML = '<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al cargar movimientos.</p>';
+                return;
+            }
+
+            const todosLosPagos = await res.json();
+            
+            const hoy = new Date();
+            const anio = hoy.getFullYear();
+            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoy.getDate()).padStart(2, '0');
+            const hoyStr = `${anio}-${mes}-${dia}`;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
-                
-                // Filtramos por fecha (esHoy) y eliminamos la dependencia del timestamp del cierre
-                // que es lo que estaba bloqueando la visualización de los pagos nuevos
                 return fechaBruta.substring(0, 10) === hoyStr;
             });
             
             if (movimientos.length === 0) {
-            // ... (código siguiente igual)
+                contenido.innerHTML = '<p style="color:#aaa; text-align:center; margin:5px 0;">No hay movimientos hoy.</p>';
+                return;
+            }
+
+            let totalDia = 0;
+            let htmlMovimientos = '<ul style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;">';
+
+            movimientos.forEach(m => {
+                const montoNum = Number(m.monto) || 0;
+                totalDia += montoNum;
+                const fechaP = new Date(m.fecha_pago || m.created_at);
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                htmlMovimientos += `
+                    <li style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
+                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'}</span>
+                        <span style="color: #4caf50; font-weight: bold;">$${montoNum.toFixed(2)}</span>
+                    </li>
+                `;
+            });
+
+            htmlMovimientos += '</ul>';
+            htmlMovimientos += `
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); font-weight: bold;">
+                    <span>Total del Día:</span>
+                    <span style="color: #4caf50;">$${totalDia.toFixed(2)}</span>
+                </div>
+            `;
+
+            contenido.innerHTML = htmlMovimientos;
+        } catch (e) {
+            console.error("Error al cargar caja chica:", e);
+            contenido.innerHTML = '<p style="color:#ff4757; text-align:center; margin:5px 0;">Error de red al cargar caja.</p>';
+        }
+    },
+
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
@@ -460,7 +512,6 @@ window.GymApp.pagos = {
         const monto = document.getElementById('in-monto').value;
         const interes = document.getElementById('in-interes').value;
         try {
-            // Se ajustan las claves del cuerpo para mantener compatibilidad exacta con el backend (monto_cuota e interes)
             const response = await fetch('https://booty-gym-backend.onrender.com/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
