@@ -419,11 +419,10 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
-            // Guardamos el timestamp actual para que la caja chica posterior inicie en 0 para el siguiente usuario
-           const usuarioActual = localStorage.getItem('admin_user') || 'default';
-localStorage.setItem(`caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`, Date.now());
+            // Guardamos el timestamp actual sin volver a declarar la constante
+            usuarioActual = localStorage.getItem('admin_user') || 'default';
+            localStorage.setItem(`caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`, Date.now());
             this.cargarCajaChicaDia();
-
         } catch (e) {
             console.error("Error al realizar el cierre de caja:", e);
             alert("Ocurrió un error al generar el cierre de caja.");
