@@ -68,7 +68,7 @@ window.GymApp.pagos = {
         }
     },
 
-cargarCajaChicaDia: async function() {
+    cargarCajaChicaDia: async function() {
         const contenedorCaja = document.getElementById('caja-chica-contenido');
         if (!contenedorCaja) return;
 
@@ -92,7 +92,6 @@ cargarCajaChicaDia: async function() {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            // Leer la marca del último cierre
             const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
@@ -136,7 +135,7 @@ cargarCajaChicaDia: async function() {
             console.error("Error al cargar caja chica:", e);
             contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
         }
-    }
+    },
 
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
@@ -224,7 +223,6 @@ cargarCajaChicaDia: async function() {
             }
         }
         
-        // Mantener el filtro aplicado si recarga
         this.filtrarLista();
     },
 
@@ -304,7 +302,7 @@ cargarCajaChicaDia: async function() {
         }
     },
 
- realizarCierreCaja: async function() {
+    realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
@@ -326,7 +324,6 @@ cargarCajaChicaDia: async function() {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
-            // Filtrar solo los movimientos de hoy que aún no se cerraron (posteriores al último cierre guardado)
             const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
@@ -414,10 +411,7 @@ cargarCajaChicaDia: async function() {
             `);
             ventanaCierre.document.close();
 
-            // --- PASO CLAVE: Guardamos el momento exacto del cierre para poner la caja en 0 ---
             localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
-            
-            // Actualizar la vista de la caja chica inmediatamente
             this.cargarCajaChicaDia();
 
         } catch (e) {
@@ -425,6 +419,7 @@ cargarCajaChicaDia: async function() {
             alert("Ocurrió un error al generar el cierre de caja.");
         }
     },
+
     verHistorial: async function() {
         const usuarioActual = localStorage.getItem('admin_user');
         if (usuarioActual !== 'Priscila.admin') {
