@@ -205,18 +205,15 @@ app.post('/pagos', async (req, res) => {
     }
 });
 
-('app.get('/caja-chica', async (req, res) => {
+app.get('/caja-chica', async (req, res) => {
     try {
         const { gym_id } = req.query;
         const gymActual = gym_id || GIMNASIO_ACTUAL;
         
-        // Consulta segura compatible con PostgreSQL para los pagos del día actual
         const query = `
             SELECT * FROM pagos 
             WHERE gym_id = $1 
-            AND fecha_pago >= CURRENT_DATE 
-            AND fecha_pago < CURRENT_DATE + INTERVAL '1 day'
-            ORDER BY fecha_pago DESC;
+            ORDER BY id DESC
         `;
 
         const resultado = await db.query(query, [gymActual]);
