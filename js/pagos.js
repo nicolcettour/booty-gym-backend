@@ -76,7 +76,7 @@ window.GymApp.pagos = {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'default';
             
-            // Nueva clave única: combina el gimnasio y el usuario para que no se pisen
+            // Clave única por gimnasio y usuario activo
             const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
@@ -93,14 +93,13 @@ window.GymApp.pagos = {
             const hoy = new Date();
             const hoyStr = hoy.toISOString().substring(0, 10);
 
-            // Obtenemos el cierre específico de este usuario
+            // Obtiene el timestamp del último cierre de este usuario específico
             const ultimoCierre = localStorage.getItem(claveCierre) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
                 
-                // Filtramos por fecha de hoy y por si es posterior al último cierre PERSONAL de este usuario
                 const esHoy = fechaBruta.substring(0, 10) === hoyStr;
                 const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
                 
@@ -120,10 +119,11 @@ window.GymApp.pagos = {
                 totalDia += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
                 const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const usuarioReg = m.usuario_registro && m.usuario_registro !== 'Admin' ? m.usuario_registro : usuarioActual;
 
                 htmlMovimientos += `
                     <li style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
-                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${m.usuario_registro || 'Admin'})</small></span>
+                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${usuarioReg})</small></span>
                         <span style="color: #4caf50; font-weight: bold;">$${montoNum.toFixed(2)}</span>
                     </li>
                 `;
@@ -254,7 +254,7 @@ window.GymApp.pagos = {
     registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
-        const usuarioActual = localStorage.getItem('admin_user') || 'Admin';
+        const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
         
         if (botonElement) {
             botonElement.disabled = true;
@@ -264,6 +264,11 @@ window.GymApp.pagos = {
         }
 
         try {
+            // Genera la hora local exacta del navegador para evitar desfases UTC
+            const ahora = new Date();
+            const offsetMs = ahora.getTimezoneOffset() * 60 * 1000;
+            const fechaLocalIso = new Date(ahora.getTime() - offsetMs).toISOString().slice(0, -1);
+
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
@@ -272,7 +277,7 @@ window.GymApp.pagos = {
                 anio: new Date().getFullYear(),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual,
-                fecha_pago: new Date().toISOString() // Asegura el almacenamiento del horario exacto
+                fecha_pago: fechaLocalIso
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -313,7 +318,7 @@ window.GymApp.pagos = {
     realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
-            const usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
+            let usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             
@@ -332,7 +337,8 @@ window.GymApp.pagos = {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
+            const ultimoCierre = localStorage.getItem(claveCierre) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
@@ -419,9 +425,8 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
-            // Guardamos el timestamp actual sin volver a declarar la constante
-            usuarioActual = localStorage.getItem('admin_user') || 'default';
-            localStorage.setItem(`caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`, Date.now());
+            // Guardamos el timestamp único de cierre para este usuario y gimnasio
+            localStorage.setItem(claveCierre, Date.now());
             this.cargarCajaChicaDia();
         } catch (e) {
             console.error("Error al realizar el cierre de caja:", e);
