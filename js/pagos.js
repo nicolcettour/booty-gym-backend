@@ -68,7 +68,7 @@ window.GymApp.pagos = {
         }
     },
 
-    cargarCajaChicaDia: async function() {
+cargarCajaChicaDia: async function() {
         const contenedorCaja = document.getElementById('caja-chica-contenido');
         if (!contenedorCaja) return;
 
@@ -92,14 +92,19 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
+            // Leer la marca del último cierre
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
-                return fechaBruta.substring(0, 10) === hoyStr;
+                const esHoy = fechaBruta.substring(0, 10) === hoyStr;
+                const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                return esHoy && esPosteriorAlCierre;
             });
             
             if (movimientos.length === 0) {
-                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros registrados en la caja chica hoy.</p>`;
+                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros nuevos en la caja chica (Caja en $0).</p>`;
                 return;
             }
 
@@ -121,7 +126,7 @@ window.GymApp.pagos = {
 
             htmlMovs += `</ul>
                 <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
-                    <span>Total en Caja Chica Hoy:</span>
+                    <span>Total en Caja Chica Actual:</span>
                     <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
                 </div>`;
 
@@ -131,7 +136,7 @@ window.GymApp.pagos = {
             console.error("Error al cargar caja chica:", e);
             contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
         }
-    },
+    }
 
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
@@ -299,7 +304,7 @@ window.GymApp.pagos = {
         }
     },
 
-    realizarCierreCaja: async function() {
+ realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
@@ -321,14 +326,19 @@ window.GymApp.pagos = {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
+            // Filtrar solo los movimientos de hoy que aún no se cerraron (posteriores al último cierre guardado)
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
-                return fechaBruta.substring(0, 10) === hoyStr;
+                const esHoy = fechaBruta.substring(0, 10) === hoyStr;
+                const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                return esHoy && esPosteriorAlCierre;
             });
 
             if (movimientos.length === 0) {
-                alert("No hay cobros registrados hoy para realizar el cierre.");
+                alert("No hay nuevos cobros registrados para realizar el cierre.");
                 return;
             }
 
@@ -404,12 +414,17 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
+            // --- PASO CLAVE: Guardamos el momento exacto del cierre para poner la caja en 0 ---
+            localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
+            
+            // Actualizar la vista de la caja chica inmediatamente
+            this.cargarCajaChicaDia();
+
         } catch (e) {
             console.error("Error al realizar el cierre de caja:", e);
             alert("Ocurrió un error al generar el cierre de caja.");
         }
     },
-
     verHistorial: async function() {
         const usuarioActual = localStorage.getItem('admin_user');
         if (usuarioActual !== 'Priscila.admin') {
