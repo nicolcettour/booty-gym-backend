@@ -87,8 +87,13 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            const hoy = new Date();
-            const hoyStr = hoy.toISOString().substring(0, 10);
+            // Obtener fecha actual en formato local YYYY-MM-DD
+            const ahoraLoc = new Date();
+            const anioL = ahoraLoc.getFullYear();
+            const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
+            const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
+            const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
+
             const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
 
             const movimientos = todosLosPagos.filter(m => {
@@ -96,9 +101,13 @@ window.GymApp.pagos = {
                 if (!fechaBruta) return false;
                 
                 const fechaMov = new Date(fechaBruta);
-                const fechaMovStr = fechaMov.toISOString().substring(0, 10);
+                const fAnio = fechaMov.getFullYear();
+                const fMes = String(fechaMov.getMonth() + 1).padStart(2, '0');
+                const fDia = String(fechaMov.getDate()).padStart(2, '0');
+                const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
                 
-                return fechaMovStr === hoyStr && fechaMov.getTime() > (ultimoCierre - 1000);
+                // Debe ser del día de hoy local y posterior al último cierre
+                return fechaMovStrLocal === hoyStrLocal && fechaMov.getTime() > (ultimoCierre - 1000);
             });
             
             if (movimientos.length === 0) {
@@ -325,12 +334,12 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            const hoy = new Date();
-            const anio = hoy.getFullYear();
-            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoy.getDate()).padStart(2, '0');
-            const hoyStr = `${anio}-${mes}-${dia}`;
-            const fechaFormateada = hoy.toLocaleDateString();
+        const ahoraLoc = new Date();
+            const anioL = ahoraLoc.getFullYear();
+            const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
+            const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
+            const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
+            const fechaFormateada = ahoraLoc.toLocaleDateString();
 
             const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
 
@@ -338,9 +347,12 @@ window.GymApp.pagos = {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
                 const fechaMov = new Date(fechaBruta);
-                const fechaMovStr = fechaMov.toISOString().substring(0, 10);
+                const fAnio = fechaMov.getFullYear();
+                const fMes = String(fechaMov.getMonth() + 1).padStart(2, '0');
+                const fDia = String(fechaMov.getDate()).padStart(2, '0');
+                const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
                 
-                return fechaMovStr === hoyStr && fechaMov.getTime() > (ultimoCierre - 1000);
+                return fechaMovStrLocal === hoyStrLocal && fechaMov.getTime() > (ultimoCierre - 1000);
             });
 
             if (movimientos.length === 0) {
