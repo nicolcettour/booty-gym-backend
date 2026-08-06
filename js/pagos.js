@@ -51,7 +51,7 @@ window.GymApp.pagos = {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
             
-            const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/caja-chica';
+          const url = gymId ? `https://booty-gym-backend.vercel.app/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.vercel.app/caja-chica';
             const res = await fetch(url);
             
             if (!res.ok) {
