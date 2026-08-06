@@ -91,14 +91,19 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
+            // Control de último cierre para reiniciar caja a 0 para el nuevo usuario
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
-                return fechaBruta.substring(0, 10) === hoyStr;
+                const esHoy = fechaBruta.substring(0, 10) === hoyStr;
+                const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                return esHoy && esPosteriorAlCierre;
             });
             
             if (movimientos.length === 0) {
-                contenido.innerHTML = '<p style="color:#aaa; text-align:center; margin:5px 0;">No hay movimientos hoy.</p>';
+                contenido.innerHTML = '<p style="color:#aaa; text-align:center; margin:5px 0;">No hay movimientos hoy (Caja en $0.00).</p>';
                 return;
             }
 
@@ -109,11 +114,11 @@ window.GymApp.pagos = {
                 const montoNum = Number(m.monto) || 0;
                 totalDia += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                 htmlMovimientos += `
                     <li style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
-                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'}</span>
+                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${m.usuario_registro || 'Admin'})</small></span>
                         <span style="color: #4caf50; font-weight: bold;">$${montoNum.toFixed(2)}</span>
                     </li>
                 `;
@@ -261,7 +266,8 @@ window.GymApp.pagos = {
                 mes: new Date().getMonth() + 1,
                 anio: new Date().getFullYear(),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-                usuario_registro: usuarioActual
+                usuario_registro: usuarioActual,
+                fecha_pago: new Date().toISOString() // Asegura el almacenamiento del horario exacto
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -343,7 +349,7 @@ window.GymApp.pagos = {
                 const montoNum = Number(m.monto) || 0;
                 totalCaja += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
                 filasHTML += `
@@ -408,6 +414,7 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
+            // Guardamos el timestamp actual para que la caja chica posterior inicie en 0 para el siguiente usuario
             localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
             this.cargarCajaChicaDia();
 
