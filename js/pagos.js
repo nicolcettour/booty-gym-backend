@@ -5,37 +5,43 @@ window.GymApp.pagos = {
         const usuarioActual = localStorage.getItem('admin_user');
         const esAdminPrincipal = (usuarioActual === 'Priscila.admin');
 
-        const main = document.getElementById('app');
-        main.innerHTML = `
-            ${window.GymApp.renderLogo()}
-            <h2 style="color: #ff9a8b; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Control de Pagos</h2>
-            
-            <!-- Resumen financiero (Solo Priscila.admin) -->
-            <div id="resumen-financiero" style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:10px; color: #fff; border: 1px solid #333; ${esAdminPrincipal ? '' : 'display:none;'}"></div>
-            
-            <!-- SECCIÓN NUEVA: Caja Chica del Día -->
-            <div style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:15px; border: 1px solid #ff9a8b; color: #fff;">
-                <h3 style="color: #ff9a8b; margin-top:0; font-size:1.1em; display:flex; justify-content:space-between; align-items:center;">
-                    <span>📦 Caja Chica del Día</span>
-                    <button onclick="window.GymApp.pagos.realizarCierreCaja()" style="background:#ff9a8b; color:black; border:none; padding:5px 12px; border-radius:5px; font-weight:bold; cursor:pointer; font-size:0.8em;">Cierre de Caja / PDF</button>
-                </h3>
-                <div id="caja-chica-contenido" style="font-size:0.9em; max-height: 150px; overflow-y: auto;">
-                    <p style="color:#aaa; text-align:center; margin:5px 0;">Cargando movimientos de caja...</p>
-                </div>
-            </div>
+async cargarCajaChicaDia() {
+    const contenedor = document.getElementById('caja-chica-contenido');
+    if (!contenedor) return;
 
-            <div style="margin-bottom:10px;">
-                ${esAdminPrincipal ? '<button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer; margin-right: 10px;">Registro de Pagos</button>' : ''}
-                <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer;">Configuración</button>
-            </div>
-            <div style="background: rgba(20,20,20,0.85); padding: 15px; border-radius: 15px; backdrop-filter: blur(8px); border: 1px solid #333;">
-                <ul id="ul-pagos" style="list-style:none; padding:0; margin: 0;"></ul>
-            </div>`;
+    try {
+        const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
+        const response = await fetch(`https://tu-backend.onrender.com/caja-chica?gym_id=${gymId}`);
         
-        this.actualizarLista();
-        this.cargarCajaChicaDia();
-    },
+        if (!response.ok) throw new Error('Error al obtener la caja chica');
+        
+        const movimientos = await response.json();
 
+        if (movimientos.length === 0) {
+            contenedor.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay pagos registrados el día de hoy.</p>`;
+            return;
+        }
+
+        // Construimos la lista visual dentro del contenedor
+        let html = `<ul style="list-style:none; padding:0; margin:0;">`;
+        movimientos.forEach(p => {
+            // Formateamos la hora a un formato legible (ej: 14:35)
+            const hora = new Date(p.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            html += `
+                <li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+                    <span><b>${p.nombre_completo}</b> <small style="color:#aaa;">(${p.usuario_registro || 'Admin'})</small></span>
+                    <span><span style="color:#ff9a8b; font-weight:bold;">$${p.monto}</span> <small style="color:#888; margin-left:8px;">${hora}</small></span>
+                </li>`;
+        });
+        html += `</ul>`;
+
+        contenedor.innerHTML = html;
+    } catch (err) {
+        console.error("Error cargando caja chica:", err);
+        contenedor.innerHTML = `<p style="color:#ff6b6b; text-align:center; margin:5px 0;">Error al cargar los movimientos.</p>`;
+    }
+}
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
