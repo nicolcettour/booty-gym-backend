@@ -42,7 +42,7 @@ window.GymApp.pagos = {
         this.cargarCajaChicaDia();
     },
 
-   cargarCajaChicaDia: async function() {
+    cargarCajaChicaDia: async function() {
         const contenedorCaja = document.getElementById('caja-chica-contenido');
         if (!contenedorCaja) return;
 
@@ -81,19 +81,6 @@ window.GymApp.pagos = {
                     </li>`;
             });
 
-            htmlMovs += `</ul>
-                <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
-                    <span>Total en Caja Chica Hoy:</span>
-                    <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
-                </div>`;
-
-            contenedorCaja.innerHTML = htmlMovs;
-
-        } catch (e) {
-            console.error("Error al cargar caja chica:", e);
-            contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
-        }
-    },
             htmlMovs += `</ul>
                 <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
                     <span>Total en Caja Chica Hoy:</span>
