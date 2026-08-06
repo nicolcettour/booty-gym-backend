@@ -92,8 +92,8 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
-const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual) || 0;
+            // Se elimina la redeclaración de usuarioActual y se reutiliza la ya existente
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
