@@ -249,40 +249,119 @@ cargarCajaChicaDia: async function() {
         }
     },
 
-    realizarCierreCaja: function() {
-        const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
-        const fechaHoy = new Date().toLocaleDateString();
+  realizarCierreCaja: async function() {
+        try {
+            const gymId = localStorage.getItem('gym_id');
+            const usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
+            
+            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
+            
+            const res = await fetch(url);
+            if (!res.ok) {
+                alert("No se pudieron obtener los datos para el cierre de caja.");
+                return;
+            }
 
-        const ventanaCierre = window.open('', '_blank', 'width=600,height=600');
-        ventanaCierre.document.write(`
-            <html>
-                <head>
-                    <title>Cierre de Caja - ${fechaHoy}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-                        h2 { text-align: center; color: #333; }
-                        .info { margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                        button { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; display: block; margin: 20px auto; }
-                        @media print { button { display: none; } }
-                    </style>
-                </head>
-                <body>
-                    <h2>CIERRE DE CAJA DIARIO</h2>
-                    <div class="info">
-                        <p><strong>Fecha:</strong> ${fechaHoy}</p>
-                        <p><strong>Usuario / Empleada:</strong> ${usuarioActual}</p>
-                    </div>
-                    <div>
-                        <h3>Resumen de Movimientos</h3>
-                        <p>Generado correctamente desde el sistema de control de pagos.</p>
-                    </div>
-                    <button onclick="window.print()">Guardar como PDF / Imprimir</button>
-                </body>
-            </html>
-        `);
-        ventanaCierre.document.close();
+            const todosLosPagos = await res.json();
+            
+            // Fecha actual local exacta
+            const hoy = new Date();
+            const anio = hoy.getFullYear();
+            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoy.getDate()).padStart(2, '0');
+            const hoyStr = `${anio}-${mes}-${dia}`;
+            const fechaFormateada = hoy.toLocaleDateString();
+
+            // Filtrar movimientos del día exacto
+            const movimientos = todosLosPagos.filter(m => {
+                const fechaBruta = m.fecha_pago || m.created_at;
+                if (!fechaBruta) return false;
+                return fechaBruta.substring(0, 10) === hoyStr;
+            });
+
+            if (movimientos.length === 0) {
+                alert("No hay cobros registrados hoy para realizar el cierre.");
+                return;
+            }
+
+            let totalCaja = 0;
+            let filasHTML = '';
+
+            movimientos.forEach((m, index) => {
+                const montoNum = Number(m.monto) || 0;
+                totalCaja += montoNum;
+                const fechaP = new Date(m.fecha_pago || m.created_at);
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const cobradoPor = m.usuario_registro || usuarioActual;
+
+                filasHTML += `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${index + 1}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${m.nombre_completo || 'Clienta'}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${m.concepto || 'Cuota Mensual'}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${horaStr}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${cobradoPor}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold; color: #2e7d32;">$${montoNum.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            // Ventana para imprimir o exportar a PDF
+            const ventanaCierre = window.open('', '_blank', 'width=800,height=600');
+            ventanaCierre.document.write(`
+                <html>
+                    <head>
+                        <title>Cierre de Caja - ${fechaFormateada}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; color: #333; margin: 20px; }
+                            h2 { text-align: center; color: #d81b60; margin-bottom: 5px; }
+                            .info { margin-bottom: 20px; background: #f9f9f9; padding: 10px; border-radius: 5px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                            th { background-color: #d81b60; color: white; padding: 10px; text-align: left; }
+                            .total-box { margin-top: 20px; text-align: right; font-size: 1.2em; font-weight: bold; background: #f1f8e9; padding: 10px; border-radius: 5px; }
+                            .no-print { margin-top: 20px; text-align: center; }
+                            .btn { background: #d81b60; color: white; border: none; padding: 10px 20px; font-size: 1em; border-radius: 5px; cursor: pointer; }
+                            @media print { .no-print { display: none; } }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>BOOTY GYM - CIERRE DE CAJA DIARIO</h2>
+                        <div class="info">
+                            <p><strong>Fecha del Cierre:</strong> ${fechaFormateada}</p>
+                            <p><strong>Caja Cerrada por:</strong> ${usuarioActual}</p>
+                            <p><strong>Total de Transacciones:</strong> ${movimientos.length}</p>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="text-align: center;">#</th>
+                                    <th>Clienta</th>
+                                    <th style="text-align: center;">Concepto</th>
+                                    <th style="text-align: center;">Hora</th>
+                                    <th style="text-align: center;">Cobró</th>
+                                    <th style="text-align: right;">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filasHTML}
+                            </tbody>
+                        </table>
+                        <div class="total-box">
+                            Total Acumulado en Caja: $${totalCaja.toFixed(2)}
+                        </div>
+                        <div class="no-print">
+                            <button class="btn" onclick="window.print()">Guardar como PDF / Imprimir</button>
+                        </div>
+                    </body>
+                </html>
+            `);
+            ventanaCierre.document.close();
+
+        } catch (e) {
+            console.error("Error al realizar el cierre de caja:", e);
+            alert("Ocurrió un error al generar el cierre de caja.");
+        }
     },
-
     verHistorial: async function() {
         const usuarioActual = localStorage.getItem('admin_user');
         if (usuarioActual !== 'Priscila.admin') {
