@@ -335,5 +335,23 @@ app.post('/verificar-y-cambiar', async (req, res) => {
         res.status(500).send('Error al cambiar contraseña');
     }
 });
+app.get('/caja-chica', async (req, res) => {
+    try {
+        const { gym_id } = req.query;
+        const gymActual = gym_id || 'BOOTY_GYM_001';
+        
+        const query = `
+            SELECT * FROM pagos 
+            WHERE gym_id = $1 
+            ORDER BY id DESC
+        `;
+
+        const resultado = await db.query(query, [gymActual]);
+        res.json(resultado.rows);
+    } catch (err) {
+        console.error("Error al obtener caja chica:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
