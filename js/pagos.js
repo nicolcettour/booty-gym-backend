@@ -92,14 +92,16 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            // Llave unificada global para el gimnasio actual
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+            const ultimoCierre = Number(localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general'))) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
+                
                 const esHoy = fechaBruta.substring(0, 10) === hoyStr;
-                const esPosteriorAlCierre = new Date(fechaBruta).getTime() > Number(ultimoCierre);
+                const tiempoPago = new Date(fechaBruta).getTime();
+                const esPosteriorAlCierre = tiempoPago > (ultimoCierre - 1000); 
+
                 return esHoy && esPosteriorAlCierre;
             });
             
@@ -325,7 +327,6 @@ window.GymApp.pagos = {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
-            // Llave unificada global para el gimnasio actual
             const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
@@ -413,7 +414,6 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
-            // Guardar registro de cierre global por gimnasio
             localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
             this.cargarCajaChicaDia();
 
@@ -518,10 +518,11 @@ window.GymApp.pagos = {
         const monto = document.getElementById('in-monto').value;
         const interes = document.getElementById('in-interes').value;
         try {
+            // Se ajustan las claves del cuerpo para mantener compatibilidad exacta con el backend (monto_cuota e interes)
             const response = await fetch('https://booty-gym-backend.onrender.com/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ montoCuota: monto, interesPorcentaje: interes })
+                body: JSON.stringify({ monto_cuota: monto, interes: interes })
             });
             if (response.ok) {
                 window.GymApp.config.pagosConfig.montoCuota = monto;
