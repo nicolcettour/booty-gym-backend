@@ -35,6 +35,14 @@ window.GymApp.pagos = {
 
                 <div id="resumen-financiero" style="margin-bottom: 15px;"></div>
                 
+                <!-- Buscador de Clientas -->
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="buscador-pagos" placeholder="🔍 Buscar clienta por nombre o apellido..." 
+                        oninput="window.GymApp.pagos.filtrarLista()" 
+                        style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #444; background: rgba(255,255,255,0.07); color: white; font-size: 0.95em; outline: none; box-sizing: border-box;"
+                        onfocus="this.style.borderColor='#ff9a8b'" onblur="this.style.borderColor='#444'">
+                </div>
+
                 <ul id="ul-pagos" style="list-style: none; padding: 0; max-height: 400px; overflow-y: auto;">
                     <p style="text-align:center; color:#aaa;">Cargando clientas...</p>
                 </ul>
@@ -42,7 +50,6 @@ window.GymApp.pagos = {
         `;
 
         this.actualizarLista();
-        // No cargamos los datos de la caja chica de inmediato para ahorrar llamadas innecesarias hasta que la usuaria despliegue el menú.
     },
 
     toggleCajaChica: function() {
@@ -188,13 +195,13 @@ window.GymApp.pagos = {
 
             if (pagoEncontrado) {
                 totalCobrado += Number(pagoEncontrado.monto || montoBase);
-                return `<li style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
+                return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
                             ${c.nombre} ${c.apellido}: <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBase} ✅ Pagado</span>
                         </li>`;
             } else {
                 let montoAPagar = (diaActual > 10) ? montoConInteres : montoBase;
                 totalAdeudado += montoAPagar;
-                return `<li style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
+                return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
                             <span>${c.nombre} ${c.apellido}: $${Math.round(montoAPagar)}</span>
                             <button id="btn-pagar-${c.id}" onclick="window.GymApp.pagos.registrar(${i}, ${Math.round(montoAPagar)}, this)" style="background: linear-gradient(to right, #ff9a8b, #ff6a88); color: black; border: none; padding: 5px 15px; border-radius: 15px; font-weight: bold; cursor: pointer;">Registrar</button>
                         </li>`;
@@ -209,6 +216,27 @@ window.GymApp.pagos = {
                         <p><strong>Total Cobrado:</strong> <span style="color:#4caf50; font-size:1.2em;">$${totalCobrado}</span></p>
                         <p><strong>Total Adeudado:</strong> <span style="color:#ff4757; font-size:1.2em;">$${Math.round(totalAdeudado)}</span></p>
                     </div>`;
+            }
+        }
+        
+        // Mantener el filtro aplicado si recarga
+        this.filtrarLista();
+    },
+
+    filtrarLista: function() {
+        const input = document.getElementById('buscador-pagos');
+        const ul = document.getElementById('ul-pagos');
+        if (!input || !ul) return;
+
+        const filtro = input.value.toLowerCase().trim();
+        const items = ul.getElementsByTagName('li');
+
+        for (let i = 0; i < items.length; i++) {
+            const nombreCompleto = items[i].getAttribute('data-nombre') || '';
+            if (nombreCompleto.includes(filtro)) {
+                items[i].style.display = "";
+            } else {
+                items[i].style.display = "none";
             }
         }
     },
@@ -245,7 +273,6 @@ window.GymApp.pagos = {
             if (response.ok) {
                 alert("Pago registrado exitosamente");
                 this.actualizarLista();
-                // Si la caja chica está abierta, se actualiza automáticamente al registrar
                 const contenido = document.getElementById('caja-chica-contenido');
                 if (contenido && contenido.style.display === 'block') {
                     this.cargarCajaChicaDia();
