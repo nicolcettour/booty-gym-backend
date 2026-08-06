@@ -68,80 +68,20 @@ window.GymApp.pagos = {
         }
     },
 
-    cargarCajaChicaDia: async function() {
-        const contenedorCaja = document.getElementById('caja-chica-contenido');
-        if (!contenedorCaja) return;
-
-        try {
-            const gymId = localStorage.getItem('gym_id');
-            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
-            
-            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
-            
-            // Agregamos { cache: 'no-store' } para evitar que el navegador guarde en caché la respuesta anterior
-            const res = await fetch(url, { cache: 'no-store' });
-            if (!res.ok) {
-                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
-                return;
-            }
-
-            const todosLosPagos = await res.json();
-            
-            const hoy = new Date();
-            const anio = hoy.getFullYear();
-            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoy.getDate()).padStart(2, '0');
-            const hoyStr = `${anio}-${mes}-${dia}`;
-
+   // ... (código anterior igual)
             const ultimoCierre = Number(localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general'))) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
                 
-                const esHoy = fechaBruta.substring(0, 10) === hoyStr;
-                const tiempoPago = new Date(fechaBruta).getTime();
-                
-                // Damos una holgura de 5 segundos (-5000) para evitar problemas de sincronización de relojes
-                const esPosteriorAlCierre = tiempoPago > (ultimoCierre - 5000); 
-
-                return esHoy && esPosteriorAlCierre;
+                // Filtramos por fecha (esHoy) y eliminamos la dependencia del timestamp del cierre
+                // que es lo que estaba bloqueando la visualización de los pagos nuevos
+                return fechaBruta.substring(0, 10) === hoyStr;
             });
             
             if (movimientos.length === 0) {
-                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros nuevos en la caja chica (Caja en $0).</p>`;
-                return;
-            }
-
-            let totalCajaDia = 0;
-            let htmlMovs = `<ul style="list-style:none; padding:0; margin:0;">`;
-
-            movimientos.forEach(m => {
-                totalCajaDia += Number(m.monto);
-                const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const cobradoPor = m.usuario_registro || usuarioActual;
-
-                htmlMovs += `
-                    <li style="padding:6px 0; border-bottom:1px dashed #444; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 <strong>${m.nombre_completo || 'Clienta'}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
-                        <span style="color:#4caf50; font-weight:bold;">$${m.monto}</span>
-                    </li>`;
-            });
-
-            htmlMovs += `</ul>
-                <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
-                    <span>Total en Caja Chica Actual:</span>
-                    <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
-                </div>`;
-
-            contenedorCaja.innerHTML = htmlMovs;
-
-        } catch (e) {
-            console.error("Error al cargar caja chica:", e);
-            contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
-        }
-    },
+            // ... (código siguiente igual)
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
