@@ -92,7 +92,8 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
+            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
+const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
@@ -411,7 +412,8 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
-            localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
+        const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
+localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual, Date.now());
             this.cargarCajaChicaDia();
 
         } catch (e) {
