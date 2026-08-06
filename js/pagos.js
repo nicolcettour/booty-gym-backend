@@ -41,8 +41,7 @@ window.GymApp.pagos = {
         this.actualizarLista();
         this.cargarCajaChicaDia();
     },
-
-    cargarCajaChicaDia: async function() {
+cargarCajaChicaDia: async function() {
         const contenedorCaja = document.getElementById('caja-chica-contenido');
         if (!contenedorCaja) return;
 
@@ -59,11 +58,19 @@ window.GymApp.pagos = {
             }
 
             const todosLosPagos = await res.json();
-            const hoyStr = new Date().toDateString();
+            
+            // Obtenemos la fecha de hoy en formato YYYY-MM-DD local exacto
+            const hoy = new Date();
+            const anio = hoy.getFullYear();
+            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoy.getDate()).padStart(2, '0');
+            const hoyStr = `${anio}-${mes}-${dia}`;
 
+            // Filtramos comparando los primeros 10 caracteres (YYYY-MM-DD) del string de la fecha
             const movimientos = todosLosPagos.filter(m => {
-                if (!m.fecha_pago) return false;
-                return new Date(m.fecha_pago).toDateString() === hoyStr;
+                const fechaBruta = m.fecha_pago || m.created_at;
+                if (!fechaBruta) return false;
+                return fechaBruta.substring(0, 10) === hoyStr;
             });
             
             if (movimientos.length === 0) {
@@ -76,7 +83,8 @@ window.GymApp.pagos = {
 
             movimientos.forEach(m => {
                 totalCajaDia += Number(m.monto);
-                const horaStr = new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const fechaP = new Date(m.fecha_pago || m.created_at);
+                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
                 htmlMovs += `
@@ -99,7 +107,6 @@ window.GymApp.pagos = {
             contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
         }
     },
-
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
