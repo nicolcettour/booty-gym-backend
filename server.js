@@ -337,8 +337,4 @@ app.post('/verificar-y-cambiar', async (req, res) => {
     }
 });
 const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
-}
-
-module.exports = app;
+app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
