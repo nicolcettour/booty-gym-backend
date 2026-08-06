@@ -10,10 +10,7 @@ window.GymApp.login = {
                 <input type="text" id="login-user" placeholder="Usuario" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
                 <input type="password" id="login-pass" placeholder="Contraseña" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
                 
-                <input type="email" id="reg-email" placeholder="Correo electrónico" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; box-sizing: border-box;">
-                
-                <button onclick="window.GymApp.login.validar()" style="width: 100%; padding: 10px; background: #ff9a8b; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: black; margin-bottom: 10px;">INGRESAR</button>
-                <button onclick="window.GymApp.login.registrar()" style="width: 100%; padding: 8px; background: transparent; border: 1px solid #ff9a8b; color: #ff9a8b; border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-bottom: 15px;">Crear nuevo admin</button>
+                <button onclick="window.GymApp.login.validar()" style="width: 100%; padding: 10px; background: #ff9a8b; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: black; margin-bottom: 15px;">INGRESAR</button>
                 
                 <p style="cursor:pointer; color:#aaa; font-size:0.8em; text-decoration:underline;" onclick="window.GymApp.login.iniciarRecuperacion()">¿Olvidaste tu contraseña?</p>
             </div>
@@ -71,6 +68,7 @@ window.GymApp.login = {
             alert("Error crítico al conectar con el servidor de Render.");
         });
     },
+
     finalizarRecuperacion: async function(username) {
         const codigo = document.getElementById('rec-codigo').value;
         const nuevaPass = document.getElementById('rec-new-pass').value;
@@ -87,32 +85,6 @@ window.GymApp.login = {
             window.location.reload();
         } else {
             alert("Código incorrecto o error al actualizar");
-        }
-    },
-
-    registrar: async function() {
-        const user = document.getElementById('login-user').value;
-        const pass = document.getElementById('login-pass').value;
-        const email = document.getElementById('reg-email').value;
-        
-        if (!user || !pass || !email) return alert("Completa usuario, contraseña y email");
-
-        try {
-            const response = await fetch('https://booty-gym-backend.onrender.com/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user, pass, email })
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                alert("Administrador creado correctamente");
-            } else {
-                alert("Error al registrar: " + (data.message || data.error || "Desconocido"));
-            }
-        } catch (err) { 
-            alert("Error al conectar con el servidor"); 
         }
     },
 
