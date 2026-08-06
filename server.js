@@ -176,30 +176,52 @@ app.get('/pagos/agrupados', async (req, res) => {
 
 app.post('/pagos', async (req, res) => {
     try {
-        const { clienta_id, monto, concepto, nombre_completo } = req.body;
+        const { clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro } = req.body;
         
+        const gymActual = gym_id || GIMNASIO_ACTUAL;
+
         const verificacion = await db.query(
             `SELECT id FROM pagos 
              WHERE clienta_id = $1 
                AND gym_id = $2 
                AND EXTRACT(YEAR FROM fecha_pago) = EXTRACT(YEAR FROM CURRENT_DATE) 
                AND EXTRACT(MONTH FROM fecha_pago) = EXTRACT(MONTH FROM CURRENT_DATE)`,
-            [clienta_id, GIMNASIO_ACTUAL]
+            [clienta_id, gymActual]
         );
 
         if (verificacion.rows.length > 0) {
             return res.status(400).json({ error: 'Esta clienta ya tiene un pago registrado este mes.' });
         }
 
-        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, fecha_pago) 
-                       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE) RETURNING *`;
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, GIMNASIO_ACTUAL];
+        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
+                       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *`;
+        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin'];
         
         const result = await db.query(query, values);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error("Error al registrar pago:", err);
         res.status(500).json({ error: 'Error al registrar pago' });
+    }
+});
+
+app.get('/caja-chica', async (req, res) => {
+    try {
+        const { gym_id } = req.query;
+        
+        const query = `
+            SELECT * FROM pagos 
+            WHERE gym_id = $1 
+            AND DATE(fecha_pago) = CURRENT_DATE
+            ORDER BY fecha_pago DESC;
+        `;
+        const values = [gym_id || GIMNASIO_ACTUAL];
+
+        const resultado = await db.query(query, values);
+        res.json(resultado.rows);
+    } catch (err) {
+        console.error("Error al obtener caja chica:", err);
+        res.status(500).json({ error: 'Error al obtener caja chica' });
     }
 });
 
@@ -263,13 +285,10 @@ app.post('/register', async (req, res) => {
         res.status(201).json({ success: true });
     } catch (err) {
         console.error("Error al registrar:", err);
-        // CAMBIA ESTA LÍNEA TEMPORALMENTE:
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// Ruta corregida usando 'db' y la tabla 'usuarios'
-// Ruta usando la API HTTP de Brevo (Instantánea y sin bloqueos en Render)
 app.post('/solicitar-codigo', async (req, res) => {
     const { username } = req.body;
     try {
@@ -281,26 +300,12 @@ app.post('/solicitar-codigo', async (req, res) => {
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
         await db.query('UPDATE usuarios SET codigo_recuperacion = $1 WHERE username = $2', [codigo, username]);
 
-        // Como Render bloquea el envío por red en el plan gratuito, 
-        // devolvemos el éxito de manera instantánea para liberar la interfaz de tus usuarios.
         console.log(`[RECUPERACIÓN] Código para ${username}: ${codigo}`);
 
         res.json({ 
             success: true, 
             message: "Código generado con éxito." 
         });
-    } catch (err) {
-        console.error("Error al solicitar código:", err);
-        res.status(500).json({ success: false, message: "Error interno del servidor" });
-    }
-});
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Error de Brevo API:", errorData);
-            return res.status(500).json({ success: false, message: "Error al enviar el correo" });
-        }
-
-        res.json({ success: true, message: "Código enviado con éxito a tu correo." });
     } catch (err) {
         console.error("Error al solicitar código:", err);
         res.status(500).json({ success: false, message: "Error interno del servidor" });

@@ -10,19 +10,30 @@ window.GymApp.pagos = {
             ${window.GymApp.renderLogo()}
             <h2 style="color: #ff9a8b; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Control de Pagos</h2>
             
-            <!-- El resumen financiero solo se muestra si es Priscila.admin -->
+            <!-- Resumen financiero (Solo Priscila.admin) -->
             <div id="resumen-financiero" style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:10px; color: #fff; border: 1px solid #333; ${esAdminPrincipal ? '' : 'display:none;'}"></div>
             
+            <!-- SECCIÓN NUEVA: Caja Chica del Día -->
+            <div style="margin-bottom:20px; padding:15px; background: rgba(20,20,20,0.85); backdrop-filter: blur(8px); border-radius:15px; border: 1px solid #ff9a8b; color: #fff;">
+                <h3 style="color: #ff9a8b; margin-top:0; font-size:1.1em; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📦 Caja Chica del Día</span>
+                    <button onclick="window.GymApp.pagos.realizarCierreCaja()" style="background:#ff9a8b; color:black; border:none; padding:5px 12px; border-radius:5px; font-weight:bold; cursor:pointer; font-size:0.8em;">Cierre de Caja / PDF</button>
+                </h3>
+                <div id="caja-chica-contenido" style="font-size:0.9em; max-height: 150px; overflow-y: auto;">
+                    <p style="color:#aaa; text-align:center; margin:5px 0;">Cargando movimientos de caja...</p>
+                </div>
+            </div>
+
             <div style="margin-bottom:10px;">
-                <!-- El botón de Registro de Pagos (historial) se oculta si no es admin principal -->
                 ${esAdminPrincipal ? '<button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer; margin-right: 10px;">Registro de Pagos</button>' : ''}
-                
                 <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:5px; cursor:pointer;">Configuración</button>
             </div>
             <div style="background: rgba(20,20,20,0.85); padding: 15px; border-radius: 15px; backdrop-filter: blur(8px); border: 1px solid #333;">
                 <ul id="ul-pagos" style="list-style:none; padding:0; margin: 0;"></ul>
             </div>`;
+        
         this.actualizarLista();
+        this.cargarCajaChicaDia();
     },
 
     actualizarLista: async function() {
@@ -100,7 +111,6 @@ window.GymApp.pagos = {
             }
         }).join('');
 
-        // Solo actualizamos el resumen si el div existe y el usuario es el admin principal
         if (divResumen) {
             const usuarioActual = localStorage.getItem('admin_user');
             if (usuarioActual === 'Priscila.admin') {
@@ -113,9 +123,64 @@ window.GymApp.pagos = {
         }
     },
 
+    cargarCajaChicaDia: async function() {
+        const contenedorCaja = document.getElementById('caja-chica-contenido');
+        if (!contenedorCaja) return;
+
+        try {
+            const gymId = localStorage.getItem('gym_id');
+            const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
+            
+            // Petición para obtener los movimientos de caja del día actual
+            const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/caja-chica';
+            const res = await fetch(url);
+            
+            if (!res.ok) {
+                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
+                return;
+            }
+
+            const movimientos = await res.json();
+            
+            if (movimientos.length === 0) {
+                contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros registrados en la caja chica hoy.</p>`;
+                return;
+            }
+
+            let totalCajaDia = 0;
+            let htmlMovs = `<ul style="list-style:none; padding:0; margin:0;">`;
+
+            movimientos.forEach(m => {
+                totalCajaDia += Number(m.monto);
+                // Formateamos la hora del registro
+                const horaStr = m.fecha_pago ? new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente';
+                const cobradoPor = m.usuario_registro || usuarioActual;
+
+                htmlMovs += `
+                    <li style="padding:6px 0; border-bottom:1px dashed #444; display:flex; justify-content:space-between; align-items:center;">
+                        <span>👤 <strong>${m.nombre_completo}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
+                        <span style="color:#4caf50; font-weight:bold;">$${m.monto}</span>
+                    </li>`;
+            });
+
+            htmlMovs += `</ul>
+                <div style="margin-top:10px; padding-top:5px; border-top:1px solid #ff9a8b; display:flex; justify-content:space-between; font-weight:bold;">
+                    <span>Total en Caja Chica Hoy:</span>
+                    <span style="color:#4caf50; font-size:1.1em;">$${totalCajaDia}</span>
+                </div>`;
+
+            contenedorCaja.innerHTML = htmlMovs;
+
+        } catch (e) {
+            console.error("Error al cargar caja chica:", e);
+            contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
+        }
+    },
+
     registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
+        const usuarioActual = localStorage.getItem('admin_user') || 'Admin';
         
         if (botonElement) {
             botonElement.disabled = true;
@@ -131,7 +196,8 @@ window.GymApp.pagos = {
                 monto: monto,
                 mes: new Date().getMonth() + 1,
                 anio: new Date().getFullYear(),
-                nombre_completo: `${clienta.nombre} ${clienta.apellido}`
+                nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
+                usuario_registro: usuarioActual // Enviamos quién está realizando el cobro
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -140,13 +206,13 @@ window.GymApp.pagos = {
                 body: JSON.stringify(cuerpoPeticion)
             });
 
-            const textoRespuesta = await response.text();
-
             if (response.ok) {
-                alert("Pago registrado exitosamente");
+                alert("Pago registrado exitosamente en la caja chica");
                 this.actualizarLista();
+                this.cargarCajaChicaDia();
             } else {
-                alert(`Error del servidor (${response.status}): ${textoRespuesta}`);
+                const textoRespuesta = await response.text();
+                alert(`Error del servidor: ${textoRespuesta}`);
                 if (botonElement) {
                     botonElement.disabled = false;
                     botonElement.innerText = "Registrar";
@@ -166,8 +232,42 @@ window.GymApp.pagos = {
         }
     },
 
+    realizarCierreCaja: function() {
+        const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
+        const fechaHoy = new Date().toLocaleDateString();
+
+        // Creamos una ventana emergente limpia para imprimir o guardar el PDF del cierre de caja
+        const ventanaCierre = window.open('', '_blank', 'width=600,height=600');
+        ventanaCierre.document.write(`
+            <html>
+                <head>
+                    <title>Cierre de Caja - ${fechaHoy}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                        h2 { text-align: center; color: #333; }
+                        .info { margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                        button { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; display: block; margin: 20px auto; }
+                        @media print { button { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <h2>CIERRE DE CAJA DIARIO</h2>
+                    <div class="info">
+                        <p><strong>Fecha:</strong> ${fechaHoy}</p>
+                        <p><strong>Usuario / Empleada:</strong> ${usuarioActual}</p>
+                    </div>
+                    <div>
+                        <h3>Resumen de Movimientos</h3>
+                        <p>Generado correctamente desde el sistema de control de pagos.</p>
+                    </div>
+                    <button onclick="window.print()">Guardar como PDF / Imprimir</button>
+                </body>
+            </html>
+        `);
+        ventanaCierre.document.close();
+    },
+
     verHistorial: async function() {
-        // Bloqueo adicional por seguridad si intentan entrar por URL o consola
         const usuarioActual = localStorage.getItem('admin_user');
         if (usuarioActual !== 'Priscila.admin') {
             alert("No tienes permisos para ver el registro histórico.");
