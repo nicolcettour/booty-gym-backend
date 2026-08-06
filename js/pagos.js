@@ -13,13 +13,16 @@ window.GymApp.pagos = {
             <div style="max-width: 650px; margin: 0 auto; background: rgba(20,20,20,0.85); padding: 20px; border-radius: 15px; border: 1px solid #333; color: white;">
                 <h2 style="text-align: center; color: #ff9a8b; margin-top: 0;">CONTROL DE PAGOS</h2>
                 
-                <!-- Caja Chica del Día -->
+                <!-- Caja Chica del Día Desplegable -->
                 <div style="background: rgba(255,255,255,0.05); border: 1px solid #ff9a8b; border-radius: 10px; padding: 12px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="window.GymApp.pagos.toggleCajaChica()">
                         <span style="font-weight: bold; color: #ff9a8b;">📦 Caja Chica del Día</span>
-                        <button onclick="window.GymApp.pagos.realizarCierreCaja()" style="background: #ff9a8b; color: black; border: none; padding: 5px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9em;">Cierre de Caja / PDF</button>
+                        <div>
+                            <button onclick="event.stopPropagation(); window.GymApp.pagos.realizarCierreCaja()" style="background: #ff9a8b; color: black; border: none; padding: 5px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9em; margin-right: 8px;">Cierre / PDF</button>
+                            <button id="btn-toggle-caja" style="background: #333; color: #ff9a8b; border: 1px solid #ff9a8b; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🔽 Ver</button>
+                        </div>
                     </div>
-                    <div id="caja-chica-contenido">
+                    <div id="caja-chica-contenido" style="display: none; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
                         <p style="color:#aaa; text-align:center; margin:5px 0;">Cargando movimientos...</p>
                     </div>
                 </div>
@@ -39,9 +42,26 @@ window.GymApp.pagos = {
         `;
 
         this.actualizarLista();
-        this.cargarCajaChicaDia();
+        // No cargamos los datos de la caja chica de inmediato para ahorrar llamadas innecesarias hasta que la usuaria despliegue el menú.
     },
-cargarCajaChicaDia: async function() {
+
+    toggleCajaChica: function() {
+        const contenido = document.getElementById('caja-chica-contenido');
+        const boton = document.getElementById('btn-toggle-caja');
+        
+        if (!contenido) return;
+
+        if (contenido.style.display === 'none') {
+            contenido.style.display = 'block';
+            if (boton) boton.textContent = '🔼 Ocultar';
+            this.cargarCajaChicaDia();
+        } else {
+            contenido.style.display = 'none';
+            if (boton) boton.textContent = '🔽 Ver';
+        }
+    },
+
+    cargarCajaChicaDia: async function() {
         const contenedorCaja = document.getElementById('caja-chica-contenido');
         if (!contenedorCaja) return;
 
@@ -59,14 +79,12 @@ cargarCajaChicaDia: async function() {
 
             const todosLosPagos = await res.json();
             
-            // Obtenemos la fecha de hoy en formato YYYY-MM-DD local exacto
             const hoy = new Date();
             const anio = hoy.getFullYear();
             const mes = String(hoy.getMonth() + 1).padStart(2, '0');
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            // Filtramos comparando los primeros 10 caracteres (YYYY-MM-DD) del string de la fecha
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
@@ -107,6 +125,7 @@ cargarCajaChicaDia: async function() {
             contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
         }
     },
+
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
@@ -226,7 +245,11 @@ cargarCajaChicaDia: async function() {
             if (response.ok) {
                 alert("Pago registrado exitosamente");
                 this.actualizarLista();
-                this.cargarCajaChicaDia();
+                // Si la caja chica está abierta, se actualiza automáticamente al registrar
+                const contenido = document.getElementById('caja-chica-contenido');
+                if (contenido && contenido.style.display === 'block') {
+                    this.cargarCajaChicaDia();
+                }
             } else {
                 const textoRespuesta = await response.text();
                 alert(`Error del servidor: ${textoRespuesta}`);
@@ -249,7 +272,7 @@ cargarCajaChicaDia: async function() {
         }
     },
 
-  realizarCierreCaja: async function() {
+    realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
@@ -264,7 +287,6 @@ cargarCajaChicaDia: async function() {
 
             const todosLosPagos = await res.json();
             
-            // Fecha actual local exacta
             const hoy = new Date();
             const anio = hoy.getFullYear();
             const mes = String(hoy.getMonth() + 1).padStart(2, '0');
@@ -272,7 +294,6 @@ cargarCajaChicaDia: async function() {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
-            // Filtrar movimientos del día exacto
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
@@ -306,7 +327,6 @@ cargarCajaChicaDia: async function() {
                 `;
             });
 
-            // Ventana para imprimir o exportar a PDF
             const ventanaCierre = window.open('', '_blank', 'width=800,height=600');
             ventanaCierre.document.write(`
                 <html>
@@ -362,6 +382,7 @@ cargarCajaChicaDia: async function() {
             alert("Ocurrió un error al generar el cierre de caja.");
         }
     },
+
     verHistorial: async function() {
         const usuarioActual = localStorage.getItem('admin_user');
         if (usuarioActual !== 'Priscila.admin') {
