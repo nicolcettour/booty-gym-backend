@@ -38,7 +38,6 @@ window.GymApp.pagos = {
             </div>
         `;
 
-        // Ejecutamos la carga de datos y de la caja chica
         this.actualizarLista();
         this.cargarCajaChicaDia();
     },
@@ -51,7 +50,7 @@ window.GymApp.pagos = {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
             
-          const url = gymId ? `https://booty-gym-backend.vercel.app/caja-chica?gym_id=${gymId}` : 'https://booty-gym-backend.vercel.app/caja-chica';
+            const url = gymId ? `/caja-chica?gym_id=${gymId}` : '/caja-chica';
             const res = await fetch(url);
             
             if (!res.ok) {
@@ -102,17 +101,17 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id');
-            const urlClientas = gymId ? `https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}` : 'http://localhost:3000/clientas';
+            const urlClientas = gymId ? `/clientas?gym_id=${gymId}` : '/clientas';
             const resClientas = await fetch(urlClientas);
             if (resClientas.ok) {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
-            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos';
+            const urlPagos = gymId ? `/pagos?gym_id=${gymId}` : '/pagos';
             const resPagos = await fetch(urlPagos);
             window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-            const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
+            const resConfig = await fetch('/config');
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
                 window.GymApp.config.pagosConfig = {
@@ -205,7 +204,7 @@ window.GymApp.pagos = {
                 usuario_registro: usuarioActual
             };
 
-            const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
+            const response = await fetch('/pagos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(cuerpoPeticion)
@@ -281,7 +280,7 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id');
-            const urlHistorial = gymId ? `https://booty-gym-backend.onrender.com/pagos/agrupados?gym_id=${gymId}` : 'https://booty-gym-backend.onrender.com/pagos/agrupados';
+            const urlHistorial = gymId ? `/pagos/agrupados?gym_id=${gymId}` : '/pagos/agrupados';
             const response = await fetch(urlHistorial);
             const data = await response.json();
             window.GymApp.tempData = data;
@@ -366,7 +365,7 @@ window.GymApp.pagos = {
         const monto = document.getElementById('in-monto').value;
         const interes = document.getElementById('in-interes').value;
         try {
-            const response = await fetch('https://booty-gym-backend.onrender.com/config', {
+            const response = await fetch('/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ montoCuota: monto, interesPorcentaje: interes })
