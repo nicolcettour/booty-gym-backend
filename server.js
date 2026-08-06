@@ -205,23 +205,25 @@ app.post('/pagos', async (req, res) => {
     }
 });
 
-app.get('/caja-chica', async (req, res) => {
+('app.get('/caja-chica', async (req, res) => {
     try {
         const { gym_id } = req.query;
+        const gymActual = gym_id || GIMNASIO_ACTUAL;
         
+        // Consulta segura compatible con PostgreSQL para los pagos del día actual
         const query = `
             SELECT * FROM pagos 
             WHERE gym_id = $1 
-            AND DATE(fecha_pago) = CURRENT_DATE
+            AND fecha_pago >= CURRENT_DATE 
+            AND fecha_pago < CURRENT_DATE + INTERVAL '1 day'
             ORDER BY fecha_pago DESC;
         `;
-        const values = [gym_id || GIMNASIO_ACTUAL];
 
-        const resultado = await db.query(query, values);
+        const resultado = await db.query(query, [gymActual]);
         res.json(resultado.rows);
     } catch (err) {
-        console.error("Error al obtener caja chica:", err);
-        res.status(500).json({ error: 'Error al obtener caja chica' });
+        console.error("Error detallado al obtener caja chica:", err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 
