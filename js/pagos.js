@@ -27,7 +27,7 @@ window.GymApp.pagos = {
                 ${esAdminPrincipal ? `
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                     <button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Ver Historial de Pagos</button>
-                    <button onclick="window.GymApp.cambiarVista('CONFIG_PAGOS')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Configuración</button>
+                    <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Configuración</button>
                 </div>` : ''}
 
                 <div id="resumen-financiero" style="margin-bottom: 15px;"></div>
@@ -49,17 +49,22 @@ window.GymApp.pagos = {
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'Desconocido';
-            const url = gymId ? `https://booty-gym-backend.onrender.com/caja-chica?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/caja-chica`;
             
-            console.log("URL intentando conectar:", url);
+            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
+            
             const res = await fetch(url);
-            
             if (!res.ok) {
                 contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
                 return;
             }
 
-            const movimientos = await res.json();
+            const todosLosPagos = await res.json();
+            const hoyStr = new Date().toDateString();
+
+            const movimientos = todosLosPagos.filter(m => {
+                if (!m.fecha_pago) return false;
+                return new Date(m.fecha_pago).toDateString() === hoyStr;
+            });
             
             if (movimientos.length === 0) {
                 contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">No hay cobros registrados en la caja chica hoy.</p>`;
@@ -71,12 +76,12 @@ window.GymApp.pagos = {
 
             movimientos.forEach(m => {
                 totalCajaDia += Number(m.monto);
-                const horaStr = m.fecha_pago ? new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente';
+                const horaStr = new Date(m.fecha_pago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
                 htmlMovs += `
                     <li style="padding:6px 0; border-bottom:1px dashed #444; display:flex; justify-content:space-between; align-items:center;">
-                        <span>👤 <strong>${m.nombre_completo}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
+                        <span>👤 <strong>${m.nombre_completo || 'Clienta'}</strong> <small style="color:#aaa;">(${horaStr} - Cobró: ${cobradoPor})</small></span>
                         <span style="color:#4caf50; font-weight:bold;">$${m.monto}</span>
                     </li>`;
             });
@@ -116,8 +121,8 @@ window.GymApp.pagos = {
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
                 window.GymApp.config.pagosConfig = {
-                    montoCuota: dataConfig.monto_cuota,
-                    interesPorcentaje: dataConfig.interes
+                    montoCuota: dataConfig.monto_cuota || dataConfig.montoCuota,
+                    interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje
                 };
             }
         } catch (err) {
@@ -142,8 +147,8 @@ window.GymApp.pagos = {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
-        let montoBase = Number(configPagos.montoCuota);
-        let montoConInteres = montoBase + (montoBase * (configPagos.interesPorcentaje / 100));
+        let montoBase = Number(configPagos.montoCuota || 0);
+        let montoConInteres = montoBase + (montoBase * (Number(configPagos.interesPorcentaje || 0) / 100));
 
         ul.innerHTML = clientas.map((c, i) => {
             const pagoEncontrado = pagosRegistrados.find(p => {
@@ -212,7 +217,7 @@ window.GymApp.pagos = {
             });
 
             if (response.ok) {
-                alert("Pago registrado exitosamente en la caja chica");
+                alert("Pago registrado exitosamente");
                 this.actualizarLista();
                 this.cargarCajaChicaDia();
             } else {
