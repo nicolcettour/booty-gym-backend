@@ -92,7 +92,8 @@ window.GymApp.pagos = {
             const dia = String(hoy.getDate()).padStart(2, '0');
             const hoyStr = `${anio}-${mes}-${dia}`;
 
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual) || 0;
+            // Llave unificada global para el gimnasio actual
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
@@ -324,7 +325,8 @@ window.GymApp.pagos = {
             const hoyStr = `${anio}-${mes}-${dia}`;
             const fechaFormateada = hoy.toLocaleDateString();
 
-            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual) || 0;
+            // Llave unificada global para el gimnasio actual
+            const ultimoCierre = localStorage.getItem('caja_cerrada_timestamp_' + (gymId || 'general')) || 0;
 
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
@@ -411,7 +413,8 @@ window.GymApp.pagos = {
             `);
             ventanaCierre.document.close();
 
-            localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general') + '_' + usuarioActual, Date.now());
+            // Guardar registro de cierre global por gimnasio
+            localStorage.setItem('caja_cerrada_timestamp_' + (gymId || 'general'), Date.now());
             this.cargarCajaChicaDia();
 
         } catch (e) {
