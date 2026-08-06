@@ -78,7 +78,8 @@ window.GymApp.pagos = {
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             
-            const res = await fetch(url);
+            // Agregamos { cache: 'no-store' } para evitar que el navegador guarde en caché la respuesta anterior
+            const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) {
                 contenedorCaja.innerHTML = `<p style="color:#aaa; text-align:center; margin:5px 0;">Sin movimientos registrados hoy.</p>`;
                 return;
@@ -100,7 +101,9 @@ window.GymApp.pagos = {
                 
                 const esHoy = fechaBruta.substring(0, 10) === hoyStr;
                 const tiempoPago = new Date(fechaBruta).getTime();
-                const esPosteriorAlCierre = tiempoPago > (ultimoCierre - 1000); 
+                
+                // Damos una holgura de 5 segundos (-5000) para evitar problemas de sincronización de relojes
+                const esPosteriorAlCierre = tiempoPago > (ultimoCierre - 5000); 
 
                 return esHoy && esPosteriorAlCierre;
             });
@@ -139,7 +142,6 @@ window.GymApp.pagos = {
             contenedorCaja.innerHTML = `<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al sincronizar caja chica.</p>`;
         }
     },
-
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
