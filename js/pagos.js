@@ -266,27 +266,12 @@ registrar: async function(i, monto, botonElement) {
         }
 
         try {
-            const ahora = new Date();
-            
-            // Forzamos la obtención de la hora local exacta de Argentina (-3) o del sistema
-            const opciones = { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-            const partesFecha = new Intl.DateTimeFormat('es-AR', opciones).formatToParts(ahora);
-            
-            let objFecha = {};
-            partesFecha.forEach(p => objFecha[p.type] = p.value);
-            
-            // Construimos un string exacto con la hora local de Argentina
-            const fechaLocalExacta = `${objFecha.year}-${objFecha.month}-${objFecha.day}T${objFecha.hour}:${objFecha.minute}:${objFecha.second}`;
-
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: Number(objFecha.month),
-                anio: Number(objFecha.year),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-                usuario_registro: usuarioActual,
-                fecha_pago: fechaLocalExacta
+                usuario_registro: usuarioActual
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
