@@ -120,7 +120,7 @@ window.GymApp.pagos = {
                 const montoNum = Number(m.monto) || 0;
                 totalDia += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
                 const usuarioReg = m.usuario_registro && m.usuario_registro !== 'Admin' ? m.usuario_registro : usuarioActual;
 
                 htmlMovimientos += `
@@ -253,7 +253,7 @@ window.GymApp.pagos = {
         }
     },
 
-    registrar: async function(i, monto, botonElement) {
+registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -266,19 +266,28 @@ window.GymApp.pagos = {
         }
 
         try {
+            // Obtenemos la fecha y hora exactas del dispositivo local
             const ahora = new Date();
-            const offsetMs = ahora.getTimezoneOffset() * 60 * 1000;
-            const fechaLocalIso = new Date(ahora.getTime() - offsetMs).toISOString().slice(0, -1);
+            
+            // Enviamos la fecha completa en formato ISO local para que el backend respeta la hora exacta del dispositivo
+            const anio = ahora.getFullYear();
+            const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+            const dia = String(ahora.getDate()).padStart(2, '0');
+            const horas = String(ahora.getHours()).padStart(2, '0');
+            const minutos = String(ahora.getMinutes()).padStart(2, '0');
+            const segundos = String(ahora.getSeconds()).padStart(2, '0');
+            
+            const fechaHoraDispositivo = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
 
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: new Date().getMonth() + 1,
-                anio: new Date().getFullYear(),
+                mes: ahora.getMonth() + 1,
+                anio: anio,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual,
-                fecha_pago: fechaLocalIso
+                fecha_pago: fechaHoraDispositivo
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -369,7 +378,7 @@ const cuerpoPeticion = {
                 const montoNum = Number(m.monto) || 0;
                 totalCaja += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString('es-AR', { 
+               const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     hour: '2-digit', 
     minute: '2-digit', 
     second: '2-digit', 
