@@ -340,15 +340,15 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-           // Obtener la hora actual en formato HH:MM:SS
+            // --- CORRECCIÓN AQUÍ ---
             const ahora = new Date();
-            const horaActual = ahora.toTimeString().split(' ')[0]; // Devuelve algo como "22:15:30"
-            const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
-            const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
+            const anioL = ahora.getFullYear();
+            const mesL = String(ahora.getMonth() + 1).padStart(2, '0');
+            const diaL = String(ahora.getDate()).padStart(2, '0');
             const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
 
             const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
-
+            // ------------------------
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
