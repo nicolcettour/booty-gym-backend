@@ -194,7 +194,8 @@ app.post('/pagos', async (req, res) => {
         }
 
         // OBTENEMOS LA HORA EXACTA ACTUAL DE ARGENTINA
-        const fechaHoraExacta = new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
+       // Si no viene con hora o viene vacía, le inyectamos la fecha y hora local exacta de Argentina
+        const fechaFinal = (fecha_pago && fecha_pago.includes(':')) ? fecha_pago : new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
 
         const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
