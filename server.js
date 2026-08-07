@@ -174,38 +174,25 @@ app.get('/pagos/agrupados', async (req, res) => {
     }
 });
 
+// Ejemplo de cómo deberías recibirlo en tu backend de Node.js:
 app.post('/pagos', async (req, res) => {
     try {
-        const { clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro } = req.body;
+        const { gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fecha_pago } = req.body;
         
-        const gymActual = gym_id || GIMNASIO_ACTUAL;
+        // Validar que la fecha no sea nula, o usar la actual si no viene
+        const fechaFinal = fecha_pago || new Date().toISOString();
 
-        const verificacion = await db.query(
-            `SELECT id FROM pagos 
-             WHERE clienta_id = $1 
-               AND gym_id = $2 
-               AND EXTRACT(YEAR FROM fecha_pago) = EXTRACT(YEAR FROM CURRENT_DATE) 
-               AND EXTRACT(MONTH FROM fecha_pago) = EXTRACT(MONTH FROM CURRENT_DATE)`,
-            [clienta_id, gymActual]
-        );
-
-        if (verificacion.rows.length > 0) {
-            return res.status(400).json({ error: 'Esta clienta ya tiene un pago registrado este mes.' });
-        }
-
-        // Creamos la fecha exacta actual
-        const fechaActual = new Date();
-
-        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
-                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+        const query = `
+            INSERT INTO pagos (gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fecha_pago) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `;
         
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaActual];
+        await pool.query(query, [gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fechaFinal]);
         
-        const result = await db.query(query, values);
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error("Error detallado al registrar pago:", err);
-        res.status(500).json({ error: 'Error al registrar pago' });
+        res.status(200).json({ status: 'success', message: 'Pago registrado correctamente' });
+    } catch (error) {
+        console.error("Error al registrar pago en servidor:", error);
+        res.status(500).send(error.message);
     }
 });
 app.get('/caja-chica', async (req, res) => {
