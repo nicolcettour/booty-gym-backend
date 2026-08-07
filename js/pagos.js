@@ -369,7 +369,12 @@ const cuerpoPeticion = {
                 const montoNum = Number(m.monto) || 0;
                 totalCaja += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-                const horaStr = fechaP.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const horaStr = fechaP.toLocaleTimeString('es-AR', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: false 
+});
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
                 filasHTML += `
