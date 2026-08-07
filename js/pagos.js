@@ -332,26 +332,30 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            const ahoraLoc = new Date();
-            const anioL = ahoraLoc.getFullYear();
-            const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
-            const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
-            const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
-            const fechaFormateada = ahoraLoc.toLocaleDateString();
+        // ... dentro de la función registrar ...
 
-            const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
+// En lugar de usar toISOString, construyamos la fecha manualmente
+const ahora = new Date();
+const anio = ahora.getFullYear();
+const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+const dia = String(ahora.getDate()).padStart(2, '0');
+const horas = String(ahora.getHours()).padStart(2, '0');
+const minutos = String(ahora.getMinutes()).padStart(2, '0');
+const segundos = String(ahora.getSeconds()).padStart(2, '0');
 
-            const movimientos = todosLosPagos.filter(m => {
-                const fechaBruta = m.fecha_pago || m.created_at;
-                if (!fechaBruta) return false;
-                const fechaMov = new Date(fechaBruta);
-                const fAnio = fechaMov.getFullYear();
-                const fMes = String(fechaMov.getMonth() + 1).padStart(2, '0');
-                const fDia = String(fechaMov.getDate()).padStart(2, '0');
-                const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
-                
-                return fechaMovStrLocal === hoyStrLocal && (fechaMov.getTime() >= ultimoCierre);
-            });
+// Formato: YYYY-MM-DDTHH:MM:SS
+const fechaLocalExacta = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
+
+const cuerpoPeticion = {
+    gym_id: gymId,
+    clienta_id: clienta.id,
+    monto: monto,
+    mes: ahora.getMonth() + 1,
+    anio: ahora.getFullYear(),
+    nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
+    usuario_registro: usuarioActual,
+    fecha_pago: fechaLocalExacta // Aquí usamos la cadena construida manualmente
+};
 
             if (movimientos.length === 0) {
                 alert("No hay nuevos pagos pendientes de cierre.");
