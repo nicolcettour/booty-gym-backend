@@ -197,10 +197,11 @@ app.post('/pagos', async (req, res) => {
         const fechaHoraArgentina = new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
         const horaExactaReal = new Date(fechaHoraArgentina);
 
-        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
-                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+    // Eliminamos fecha_pago y $7 para que la base de datos use CURRENT_TIMESTAMP por defecto
+        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro) 
+                        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
         
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', horaExactaReal];
+        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin'];
         
         const result = await db.query(query, values);
         res.status(201).json(result.rows[0]);
