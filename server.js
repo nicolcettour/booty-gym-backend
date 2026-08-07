@@ -176,7 +176,7 @@ app.get('/pagos/agrupados', async (req, res) => {
 
 app.post('/pagos', async (req, res) => {
     try {
-        const { clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago } = req.body;
+        const { clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro } = req.body;
         
         const gymActual = gym_id || GIMNASIO_ACTUAL;
 
@@ -193,13 +193,14 @@ app.post('/pagos', async (req, res) => {
             return res.status(400).json({ error: 'Esta clienta ya tiene un pago registrado este mes.' });
         }
 
-        // AQUÍ ESTÁ EL CAMBIO: Usamos $7 para recibir la fecha_pago que manda el frontend
+        // FORZAMOS LA HORA LOCAL EXACTA DE ARGENTINA DIRECTAMENTE EN EL SERVIDOR
+        const fechaHoraArgentina = new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const fechaArgentina = new Date(fechaHoraArgentina);
+
         const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
         
-        // Y aquí añadimos 'fecha_pago' (o usamos la fecha actual del servidor por seguridad si viniera vacía)
-        const fechaFinal = fecha_pago || new Date();
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaFinal];
+        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaArgentina];
         
         const result = await db.query(query, values);
         res.status(201).json(result.rows[0]);
