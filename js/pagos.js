@@ -253,7 +253,7 @@ window.GymApp.pagos = {
         }
     },
 
-    registrar: async function(i, monto, botonElement) {
+registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -267,24 +267,26 @@ window.GymApp.pagos = {
 
         try {
             const ahora = new Date();
-            const anio = ahora.getFullYear();
-            const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-            const dia = String(ahora.getDate()).padStart(2, '0');
-            const horas = String(ahora.getHours()).padStart(2, '0');
-            const minutos = String(ahora.getMinutes()).padStart(2, '0');
-            const segundos = String(ahora.getSeconds()).padStart(2, '0');
             
-            const fechaHoraLocal = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
+            // Forzamos la obtención de la hora local exacta de Argentina (-3) o del sistema
+            const opciones = { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const partesFecha = new Intl.DateTimeFormat('es-AR', opciones).formatToParts(ahora);
+            
+            let objFecha = {};
+            partesFecha.forEach(p => objFecha[p.type] = p.value);
+            
+            // Construimos un string exacto con la hora local de Argentina
+            const fechaLocalExacta = `${objFecha.year}-${objFecha.month}-${objFecha.day}T${objFecha.hour}:${objFecha.minute}:${objFecha.second}`;
 
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: ahora.getMonth() + 1,
-                anio: anio,
+                mes: Number(objFecha.month),
+                anio: Number(objFecha.year),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual,
-                fecha_pago: fechaHoraLocal
+                fecha_pago: fechaLocalExacta
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
@@ -321,7 +323,6 @@ window.GymApp.pagos = {
             }
         }
     },
-
     realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
