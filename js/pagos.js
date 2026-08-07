@@ -253,7 +253,7 @@ window.GymApp.pagos = {
         }
     },
 
-   registrar: async function(i, monto, botonElement) {
+    registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
