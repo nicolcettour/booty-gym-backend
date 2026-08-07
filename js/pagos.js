@@ -267,14 +267,24 @@ registrar: async function(i, monto, botonElement) {
 
         try {
             const ahora = new Date();
+            const anio = ahora.getFullYear();
+            const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+            const dia = String(ahora.getDate()).padStart(2, '0');
+            const horas = String(ahora.getHours()).padStart(2, '0');
+            const minutos = String(ahora.getMinutes()).padStart(2, '0');
+            const segundos = String(ahora.getSeconds()).padStart(2, '0');
+            
+            const fechaHoraLocal = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
+
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
                 mes: ahora.getMonth() + 1,
-                anio: ahora.getFullYear(),
+                anio: anio,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-                usuario_registro: usuarioActual
+                usuario_registro: usuarioActual,
+                fecha_pago: fechaHoraLocal
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
