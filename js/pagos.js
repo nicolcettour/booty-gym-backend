@@ -253,7 +253,7 @@ window.GymApp.pagos = {
         }
     },
 
-    registrar: async function(i, monto, botonElement) {
+   registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -266,6 +266,7 @@ window.GymApp.pagos = {
         }
 
         try {
+            // Creamos la fecha usando explícitamente los métodos locales de tu dispositivo
             const ahora = new Date();
             const anio = ahora.getFullYear();
             const mes = String(ahora.getMonth() + 1).padStart(2, '0');
@@ -274,7 +275,8 @@ window.GymApp.pagos = {
             const minutos = String(ahora.getMinutes()).padStart(2, '0');
             const segundos = String(ahora.getSeconds()).padStart(2, '0');
             
-            const fechaHoraDispositivo = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
+            // Formato de cadena local exacta sin desfasaje UTC
+            const fechaHoraLocal = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
 
             const cuerpoPeticion = {
                 gym_id: gymId,
@@ -284,7 +286,7 @@ window.GymApp.pagos = {
                 anio: anio,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual,
-                fecha_pago: fechaHoraDispositivo
+                fecha_pago: fechaHoraLocal
             };
 
             const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
