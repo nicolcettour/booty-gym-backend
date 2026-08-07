@@ -193,15 +193,13 @@ app.post('/pagos', async (req, res) => {
             return res.status(400).json({ error: 'Esta clienta ya tiene un pago registrado este mes.' });
         }
 
-        // CREAMOS LA FECHA Y HORA EXACTA DE ARGENTINA DIRECTAMENTE EN EL SERVIDOR
-        const fechaHoraArgentina = new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
-        const horaExactaReal = new Date(fechaHoraArgentina);
+        // OBTENEMOS LA HORA EXACTA ACTUAL DE ARGENTINA
+        const fechaHoraExacta = new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' });
 
-    // Eliminamos fecha_pago y $7 para que la base de datos use CURRENT_TIMESTAMP por defecto
-        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro) 
-                        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
         
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin'];
+        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaHoraExacta];
         
         const result = await db.query(query, values);
         res.status(201).json(result.rows[0]);
