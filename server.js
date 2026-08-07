@@ -193,19 +193,18 @@ app.post('/pagos', async (req, res) => {
             return res.status(400).json({ error: 'Esta clienta ya tiene un pago registrado este mes.' });
         }
 
-        // OBTENEMOS LA HORA EXACTA ACTUAL DE ARGENTINA
-       // Si no viene con hora o viene vacía, le inyectamos la fecha y hora local exacta de Argentina
-        // Creamos una fecha real limpia para la base de datos
-        const fechaFinal = new Date();
-      const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
+        // Creamos la fecha exacta actual
+        const fechaActual = new Date();
+
+        const query = `INSERT INTO pagos (clienta_id, monto, concepto, nombre_completo, gym_id, usuario_registro, fecha_pago) 
                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
         
-        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaFinal];
+        const values = [clienta_id, monto, concepto || 'Cuota Mensual', nombre_completo, gymActual, usuario_registro || 'Admin', fechaActual];
         
         const result = await db.query(query, values);
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error("Error al registrar pago:", err);
+        console.error("Error detallado al registrar pago:", err);
         res.status(500).json({ error: 'Error al registrar pago' });
     }
 });
