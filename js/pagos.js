@@ -87,7 +87,6 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            // Obtener fecha actual en formato local YYYY-MM-DD
             const ahoraLoc = new Date();
             const anioL = ahoraLoc.getFullYear();
             const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
@@ -106,8 +105,7 @@ window.GymApp.pagos = {
                 const fDia = String(fechaMov.getDate()).padStart(2, '0');
                 const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
                 
-                // Debe ser del día de hoy local y posterior al último cierre
-                return fechaMovStrLocal === hoyStrLocal && fechaMov.getTime() > (ultimoCierre - 1000);
+                return fechaMovStrLocal === hoyStrLocal && (fechaMov.getTime() >= ultimoCierre);
             });
             
             if (movimientos.length === 0) {
@@ -334,7 +332,7 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-        const ahoraLoc = new Date();
+            const ahoraLoc = new Date();
             const anioL = ahoraLoc.getFullYear();
             const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
             const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
@@ -352,7 +350,7 @@ window.GymApp.pagos = {
                 const fDia = String(fechaMov.getDate()).padStart(2, '0');
                 const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
                 
-                return fechaMovStrLocal === hoyStrLocal && fechaMov.getTime() > (ultimoCierre - 1000);
+                return fechaMovStrLocal === hoyStrLocal && (fechaMov.getTime() >= ultimoCierre);
             });
 
             if (movimientos.length === 0) {
