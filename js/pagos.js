@@ -266,10 +266,13 @@ registrar: async function(i, monto, botonElement) {
         }
 
         try {
+            const ahora = new Date();
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
+                mes: ahora.getMonth() + 1,
+                anio: ahora.getFullYear(),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual
             };
