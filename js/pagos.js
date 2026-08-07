@@ -266,7 +266,6 @@ window.GymApp.pagos = {
         }
 
         try {
-            // Creamos la fecha usando explícitamente los métodos locales de tu dispositivo
             const ahora = new Date();
             const anio = ahora.getFullYear();
             const mes = String(ahora.getMonth() + 1).padStart(2, '0');
@@ -275,7 +274,6 @@ window.GymApp.pagos = {
             const minutos = String(ahora.getMinutes()).padStart(2, '0');
             const segundos = String(ahora.getSeconds()).padStart(2, '0');
             
-            // Formato de cadena local exacta sin desfasaje UTC
             const fechaHoraLocal = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
 
             const cuerpoPeticion = {
@@ -340,7 +338,6 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            // --- CORRECCIÓN AQUÍ ---
             const ahora = new Date();
             const anioL = ahora.getFullYear();
             const mesL = String(ahora.getMonth() + 1).padStart(2, '0');
@@ -348,7 +345,7 @@ window.GymApp.pagos = {
             const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
 
             const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
-            // ------------------------
+
             const movimientos = todosLosPagos.filter(m => {
                 const fechaBruta = m.fecha_pago || m.created_at;
                 if (!fechaBruta) return false;
