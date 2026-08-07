@@ -120,7 +120,7 @@ window.GymApp.pagos = {
                 const montoNum = Number(m.monto) || 0;
                 totalDia += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-              const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
                 const usuarioReg = m.usuario_registro && m.usuario_registro !== 'Admin' ? m.usuario_registro : usuarioActual;
 
                 htmlMovimientos += `
@@ -253,7 +253,7 @@ window.GymApp.pagos = {
         }
     },
 
-registrar: async function(i, monto, botonElement) {
+    registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -266,10 +266,7 @@ registrar: async function(i, monto, botonElement) {
         }
 
         try {
-            // Obtenemos la fecha y hora exactas del dispositivo local
             const ahora = new Date();
-            
-            // Enviamos la fecha completa en formato ISO local para que el backend respeta la hora exacta del dispositivo
             const anio = ahora.getFullYear();
             const mes = String(ahora.getMonth() + 1).padStart(2, '0');
             const dia = String(ahora.getDate()).padStart(2, '0');
@@ -341,30 +338,26 @@ registrar: async function(i, monto, botonElement) {
 
             const todosLosPagos = await res.json();
             
-        // ... dentro de la función registrar ...
+            const ahoraLoc = new Date();
+            const anioL = ahoraLoc.getFullYear();
+            const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
+            const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
+            const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
 
-// En lugar de usar toISOString, construyamos la fecha manualmente
-const ahora = new Date();
-const anio = ahora.getFullYear();
-const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-const dia = String(ahora.getDate()).padStart(2, '0');
-const horas = String(ahora.getHours()).padStart(2, '0');
-const minutos = String(ahora.getMinutes()).padStart(2, '0');
-const segundos = String(ahora.getSeconds()).padStart(2, '0');
+            const ultimoCierre = Number(localStorage.getItem(claveCierre) || 0);
 
-// Formato: YYYY-MM-DDTHH:MM:SS
-const fechaLocalExacta = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
-
-const cuerpoPeticion = {
-    gym_id: gymId,
-    clienta_id: clienta.id,
-    monto: monto,
-    mes: ahora.getMonth() + 1,
-    anio: ahora.getFullYear(),
-    nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-    usuario_registro: usuarioActual,
-    fecha_pago: fechaLocalExacta // Aquí usamos la cadena construida manualmente
-};
+            const movimientos = todosLosPagos.filter(m => {
+                const fechaBruta = m.fecha_pago || m.created_at;
+                if (!fechaBruta) return false;
+                
+                const fechaMov = new Date(fechaBruta);
+                const fAnio = fechaMov.getFullYear();
+                const fMes = String(fechaMov.getMonth() + 1).padStart(2, '0');
+                const fDia = String(fechaMov.getDate()).padStart(2, '0');
+                const fechaMovStrLocal = `${fAnio}-${fMes}-${fDia}`;
+                
+                return fechaMovStrLocal === hoyStrLocal && (fechaMov.getTime() >= ultimoCierre);
+            });
 
             if (movimientos.length === 0) {
                 alert("No hay nuevos pagos pendientes de cierre.");
@@ -378,12 +371,7 @@ const cuerpoPeticion = {
                 const montoNum = Number(m.monto) || 0;
                 totalCaja += montoNum;
                 const fechaP = new Date(m.fecha_pago || m.created_at);
-               const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit', 
-    hour12: false 
-});
+                const horaStr = fechaP.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
                 const cobradoPor = m.usuario_registro || usuarioActual;
 
                 filasHTML += `
@@ -398,6 +386,7 @@ const cuerpoPeticion = {
                 `;
             });
 
+            const fechaFormateada = `${diaL}/${mesL}/${anioL}`;
             const ventanaCierre = window.open('', '_blank', 'width=800,height=600');
             ventanaCierre.document.write(`
                 <html>
