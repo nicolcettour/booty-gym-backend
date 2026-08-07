@@ -340,8 +340,9 @@ window.GymApp.pagos = {
 
             const todosLosPagos = await res.json();
             
-            const ahoraLoc = new Date();
-            const anioL = ahoraLoc.getFullYear();
+           // Obtener la hora actual en formato HH:MM:SS
+            const ahora = new Date();
+            const horaActual = ahora.toTimeString().split(' ')[0]; // Devuelve algo como "22:15:30"
             const mesL = String(ahoraLoc.getMonth() + 1).padStart(2, '0');
             const diaL = String(ahoraLoc.getDate()).padStart(2, '0');
             const hoyStrLocal = `${anioL}-${mesL}-${diaL}`;
