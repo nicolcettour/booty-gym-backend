@@ -179,38 +179,26 @@ app.post('/pagos', async (req, res) => {
     try {
         const { gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fecha_pago } = req.body;
         
-        // Validar que la fecha no sea nula, o usar la actual si no viene
-        const fechaFinal = fecha_pago || new Date().toISOString();
-
         const query = `
             INSERT INTO pagos (gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fecha_pago) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `;
         
-        await pool.query(query, [gym_id, clienta_id, monto, mes, anio, nombre_completo, usuario_registro, fechaFinal]);
+        await pool.query(query, [
+            gym_id || null, 
+            clienta_id, 
+            monto, 
+            mes, 
+            anio, 
+            nombre_completo || '', 
+            usuario_registro || 'Admin', 
+            fecha_pago || new Date()
+        ]);
         
         res.status(200).json({ status: 'success', message: 'Pago registrado correctamente' });
     } catch (error) {
-        console.error("Error al registrar pago en servidor:", error);
-        res.status(500).send(error.message);
-    }
-});
-app.get('/caja-chica', async (req, res) => {
-    try {
-        const { gym_id } = req.query;
-        const gymActual = gym_id || GIMNASIO_ACTUAL;
-        
-        const query = `
-            SELECT * FROM pagos 
-            WHERE gym_id = $1 
-            ORDER BY id DESC
-        `;
-
-        const resultado = await db.query(query, [gymActual]);
-        res.json(resultado.rows);
-    } catch (err) {
-        console.error("Error detallado al obtener caja chica:", err.message);
-        res.status(500).json({ error: err.message });
+        console.error("Error al registrar pago:", error);
+        res.status(500).json({ error: "Error al registrar pago" });
     }
 });
 
