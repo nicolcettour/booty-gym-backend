@@ -266,34 +266,22 @@ registrar: async function(i, monto, botonElement) {
         }
 
         try {
-            const ahora = new Date();
-            const anio = ahora.getFullYear();
-            const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-            const dia = String(ahora.getDate()).padStart(2, '0');
-            const horas = String(ahora.getHours()).padStart(2, '0');
-            const minutos = String(ahora.getMinutes()).padStart(2, '0');
-            const segundos = String(ahora.getSeconds()).padStart(2, '0');
-            
-            const fechaHoraLocal = `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}`;
-
             const cuerpoPeticion = {
                 gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: ahora.getMonth() + 1,
-                anio: anio,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
-                usuario_registro: usuarioActual,
-                fecha_pago: fechaHoraLocal
+                usuario_registro: usuarioActual
             };
 
-            const response = await fetch('https://booty-gym-backend.onrender.com/pagos', {
+            const response = `https://booty-gym-backend.onrender.com/pagos`;
+            const res = await fetch(response, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(cuerpoPeticion)
             });
 
-            if (response.ok) {
+            if (res.ok) {
                 alert("Pago registrado exitosamente");
                 this.actualizarLista();
                 const contenido = document.getElementById('caja-chica-contenido');
@@ -301,7 +289,7 @@ registrar: async function(i, monto, botonElement) {
                     this.cargarCajaChicaDia();
                 }
             } else {
-                const textoRespuesta = await response.text();
+                const textoRespuesta = await res.text();
                 alert(`Error del servidor: ${textoRespuesta}`);
                 if (botonElement) {
                     botonElement.disabled = false;
