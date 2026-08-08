@@ -196,22 +196,35 @@ window.GymApp.pagos = {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
-        // Función auxiliar para obtener el monto según los días de la clienta (por defecto 2 o los que tenga registrados)
-        const obtenerMontoBasePorClienta = (c) => {
-            // Evaluamos cuántos días seleccionó/tiene la clienta (puede venir en c.dias como array o número)
-            let cantDias = 2; // Por defecto
+        // Función auxiliar robusta para determinar la frecuencia semanal real (2, 3, 4 o 5)
+        const obtenerFrecuenciaSemanal = (c) => {
+            let cant = 2; // Por defecto
             if (Array.isArray(c.dias)) {
-                cantDias = c.dias.length;
+                cant = c.dias.length;
             } else if (typeof c.dias === 'number') {
-                cantDias = c.dias;
+                cant = c.dias;
             } else if (typeof c.dias_asistencia === 'number') {
-                cantDias = c.dias_asistencia;
+                cant = c.dias_asistencia;
             }
+            
+            // Si el número es mayor a 5 (porque viene de una suma de asistencias mensuales), 
+            // lo normalizamos al rango semanal correcto basándonos en un tope lógico de 5 días.
+            if (cant > 5) {
+                // Si guardaba una marca mayor, podemos estimar según su valor o acotar a un valor predeterminado seguro, 
+                // pero por lo general las fichas guardan 2, 3, 4 o 5 días por semana. 
+                // Si excede de 5, lo acotamos al máximo de la escala o mantenemos un estándar de 3/4.
+                cant = 5; 
+            }
+            if (cant < 2) cant = 2;
+            return cant;
+        };
 
-            if (cantDias === 3) return Number(configPagos.monto3dias);
-            if (cantDias === 4) return Number(configPagos.monto4dias);
+        const obtenerMontoBasePorClienta = (c) => {
+            let cantDias = obtenerFrecuenciaSemanal(c);
             if (cantDias === 5) return Number(configPagos.monto5dias);
-            return Number(configPagos.monto2dias); // 2 días por defecto o menor
+            if (cantDias === 4) return Number(configPagos.monto4dias);
+            if (cantDias === 3) return Number(configPagos.monto3dias);
+            return Number(configPagos.monto2dias);
         };
 
         ul.innerHTML = clientas.map((c, i) => {
@@ -225,11 +238,12 @@ window.GymApp.pagos = {
             });
 
             let montoBaseClienta = obtenerMontoBasePorClienta(c);
+            let frecuenciaSemanal = obtenerFrecuenciaSemanal(c);
 
             if (pagoEncontrado) {
                 totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
-                            ${c.nombre} ${c.apellido}: <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>
+                            ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>
                         </li>`;
             } else {
                 let interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
@@ -238,7 +252,7 @@ window.GymApp.pagos = {
                 totalAdeudado += montoAPagar;
 
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
-                            <span>${c.nombre} ${c.apellido} (${c.dias ? c.dias.length : 2} días): $${Math.round(montoAPagar)}</span>
+                            <span>${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): $${Math.round(montoAPagar)}</span>
                             <button id="btn-pagar-${c.id}" onclick="window.GymApp.pagos.registrar(${i}, ${Math.round(montoAPagar)}, this)" style="background: linear-gradient(to right, #ff9a8b, #ff6a88); color: black; border: none; padding: 5px 15px; border-radius: 15px; font-weight: bold; cursor: pointer;">Registrar</button>
                         </li>`;
             }
