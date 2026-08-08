@@ -206,18 +206,17 @@ app.post('/pagos', async (req, res) => {
 app.get('/config', async (req, res) => {
     try {
         const idGym = req.query.gym_id || 'BOOTY_GYM_001';
-        // Usar * para que devuelva todas las columnas de la tabla (monto_2dias, etc.)
         const resultado = await db.query('SELECT * FROM configuracion WHERE gym_id = $1', [idGym]);
         
         if (resultado.rows.length > 0) {
             res.json(resultado.rows[0]);
         } else {
             res.json({ 
-                monto_2dias: 0, 
-                monto_3dias: 0, 
-                monto_4dias: 0, 
-                monto_5dias: 0, 
-                interes: 0 
+                monto_2dias: 30000, 
+                monto_3dias: 35000, 
+                monto_4dias: 40000, 
+                monto_5dias: 45000, 
+                interes: 10 
             });
         }
     } catch (err) {
