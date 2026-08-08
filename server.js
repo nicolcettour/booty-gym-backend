@@ -218,12 +218,30 @@ app.get('/config', async (req, res) => {
 });
 
 app.post('/config', async (req, res) => {
-    const { montoCuota, interesPorcentaje } = req.body;
+    const { gym_id, monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes } = req.body;
+    const idGym = gym_id || 'general'; // O el identificador que uses en tu backend
+
     try {
-        await db.query(
-            'UPDATE configuracion SET monto_cuota = $1, interes = $2 WHERE gym_id = $3',
-            [montoCuota, interesPorcentaje, GIMNASIO_ACTUAL]
-        );
+        // Primero verificamos si ya existe un registro de configuración para este gimnasio
+        const existe = await db.query('SELECT * FROM configuracion WHERE gym_id = $1', [idGym]);
+
+        if (existe.rows.length > 0) {
+            // Si ya existe, actualizamos los 4 montos y el interés
+            await db.query(
+                `UPDATE configuracion 
+                 SET monto_2dias = $1, monto_3dias = $2, monto_4dias = $3, monto_5dias = $4, interes = $5 
+                 WHERE gym_id = $6`,
+                [monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes, idGym]
+            );
+        } else {
+            // Si no existe, lo insertamos por primera vez
+            await db.query(
+                `INSERT INTO configuracion (gym_id, monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes) 
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [idGym, monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes]
+            );
+        }
+
         res.status(200).send('Configuración guardada');
     } catch (err) {
         console.error("Error al guardar config:", err);
