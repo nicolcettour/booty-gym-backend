@@ -588,4 +588,5 @@ if (resConfig.ok) {
     } catch (e) {
         console.error("Error:", e);
     }
-});
+  } // <-- Llave que cierra la función guardarConfig o la función actual
+};
