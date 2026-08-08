@@ -163,17 +163,19 @@ window.GymApp.pagos = {
             const resPagos = await fetch(urlPagos);
             window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-            const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
-            if (resConfig.ok) {
-                const dataConfig = await resConfig.json();
-                window.GymApp.config.pagosConfig = {
-                    monto2dias: dataConfig.monto_2dias || dataConfig.monto2dias || dataConfig.monto_cuota || 0,
-                    monto3dias: dataConfig.monto_3dias || dataConfig.monto3dias || dataConfig.monto_cuota || 0,
-                    monto4dias: dataConfig.monto_4dias || dataConfig.monto4dias || dataConfig.monto_cuota || 0,
-                    monto5dias: dataConfig.monto_5dias || dataConfig.monto5dias || dataConfig.monto_cuota || 0,
-                    interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje || 0
-                };
-            }
+          const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
+if (resConfig.ok) {
+    const dataConfig = await resConfig.json();
+    console.log("Datos de config recibidos del backend:", dataConfig); // <-- AGREGA ESTO
+    
+    window.GymApp.config.pagosConfig = {
+        monto2dias: dataConfig.monto_2dias || dataConfig.monto_cuota || 0,
+        monto3dias: dataConfig.monto_3dias || dataConfig.monto_cuota || 0,
+        monto4dias: dataConfig.monto_4dias || dataConfig.monto_cuota || 0,
+        monto5dias: dataConfig.monto_5dias || dataConfig.monto_cuota || 0,
+        interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje || 0
+    };
+}
         } catch (err) {
             console.error("Error al sincronizar con BD:", err);
         }
