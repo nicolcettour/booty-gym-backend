@@ -233,7 +233,7 @@ app.post('/config', async (req, res) => {
         const existe = await db.query('SELECT * FROM configuracion WHERE gym_id = $1', [idGym]);
 
         if (existe.rows.length > 0) {
-            // Si ya existe, actualizamos los 4 montos y el interés
+            // si ya existe, actualizamos los 4 montos y el interés
             await db.query(
                 `UPDATE configuracion 
                  SET monto_2dias = $1, monto_3dias = $2, monto_4dias = $3, monto_5dias = $4, interes = $5 
@@ -241,7 +241,7 @@ app.post('/config', async (req, res) => {
                 [monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes, idGym]
             );
         } else {
-            // Si no existe, lo insertamos por primera vez
+            // si no existe, lo insertamos por primera vez
             await db.query(
                 `INSERT INTO configuracion (gym_id, monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes) 
                  VALUES ($1, $2, $3, $4, $5, $6)`,
