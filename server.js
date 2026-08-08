@@ -185,11 +185,11 @@ app.post('/pagos', async (req, res) => {
         `;
         
         await db.query(query, [
-            gym_id || null, 
+            gym_id || 'BOOTY_GYM_001', 
             clienta_id, 
             monto, 
-            mes, 
-            anio, 
+            mes || new Date().getMonth() + 1, 
+            anio || new Date().getFullYear(), 
             nombre_completo || '', 
             usuario_registro || 'Admin', 
             fecha_pago || new Date()
@@ -198,7 +198,7 @@ app.post('/pagos', async (req, res) => {
         res.status(200).json({ status: 'success', message: 'Pago registrado correctamente' });
     } catch (error) {
         console.error("Error al registrar pago:", error);
-        res.status(500).json({ error: "Error al registrar pago" });
+        res.status(500).json({ error: error.message });
     }
 });
 
