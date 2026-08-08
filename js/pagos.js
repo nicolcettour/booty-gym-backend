@@ -587,7 +587,8 @@ guardarConfig: async function() {
         } else {
             alert('Error al guardar la configuración');
         }
-    } catch (e) {
+   } catch (e) {
         console.error('Error:', e);
     }
 }
+};
