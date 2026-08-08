@@ -152,7 +152,7 @@ window.GymApp.pagos = {
         if (!ul) return;
 
         try {
-            const gymId = localStorage.getItem('gym_id');
+            const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
             const urlClientas = gymId ? `https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/clientas`;
             const resClientas = await fetch(urlClientas);
             if (resClientas.ok) {
@@ -163,19 +163,22 @@ window.GymApp.pagos = {
             const resPagos = await fetch(urlPagos);
             window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-          const resConfig = await fetch('https://booty-gym-backend.onrender.com/config');
-if (resConfig.ok) {
-    const dataConfig = await resConfig.json();
-    console.log("Datos de config recibidos del backend:", dataConfig); // <-- AGREGA ESTO
-    
-    window.GymApp.config.pagosConfig = {
-        monto2dias: dataConfig.monto_2dias || dataConfig.monto_cuota || 0,
-        monto3dias: dataConfig.monto_3dias || dataConfig.monto_cuota || 0,
-        monto4dias: dataConfig.monto_4dias || dataConfig.monto_cuota || 0,
-        monto5dias: dataConfig.monto_5dias || dataConfig.monto_cuota || 0,
-        interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje || 0
-    };
-}
+            const urlConfig = gymId ? `https://booty-gym-backend.onrender.com/config?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/config`;
+            const resConfig = await fetch(urlConfig);
+            if (resConfig.ok) {
+                const dataConfig = await resConfig.json();
+                console.log("Datos de config recibidos del backend:", dataConfig);
+                
+                const cuotaGeneral = Number(dataConfig.monto_cuota || 0);
+
+                window.GymApp.config.pagosConfig = {
+                    monto2dias: Number(dataConfig.monto_2dias) || cuotaGeneral || 0,
+                    monto3dias: Number(dataConfig.monto_3dias) || cuotaGeneral || 0,
+                    monto4dias: Number(dataConfig.monto_4dias) || cuotaGeneral || 0,
+                    monto5dias: Number(dataConfig.monto_5dias) || cuotaGeneral || 0,
+                    interesPorcentaje: Number(dataConfig.interes || dataConfig.interesPorcentaje || 0)
+                };
+            }
         } catch (err) {
             console.error("Error al sincronizar con BD:", err);
         }
@@ -198,9 +201,8 @@ if (resConfig.ok) {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
-        // Función auxiliar robusta para determinar la frecuencia semanal real (2, 3, 4 o 5)
         const obtenerFrecuenciaSemanal = (c) => {
-            let cant = 2; // Por defecto
+            let cant = 2;
             if (Array.isArray(c.dias)) {
                 cant = c.dias.length;
             } else if (typeof c.dias === 'number') {
@@ -209,13 +211,8 @@ if (resConfig.ok) {
                 cant = c.dias_asistencia;
             }
             
-            // Si el número es mayor a 5 (porque viene de una suma de asistencias mensuales), 
-            // lo normalizamos al rango semanal correcto basándonos en un tope lógico de 5 días.
             if (cant > 5) {
-                // Si guardaba una marca mayor, podemos estimar según su valor o acotar a un valor predeterminado seguro, 
-                // pero por lo general las fichas guardan 2, 3, 4 o 5 días por semana. 
-                // Si excede de 5, lo acotamos al máximo de la escala o mantenemos un estándar de 3/4.
-                cant = 5; 
+                cant = 5;
             }
             if (cant < 2) cant = 2;
             return cant;
@@ -563,32 +560,32 @@ if (resConfig.ok) {
         main.innerHTML = html;
     },
 
-guardarConfig: async function() {
-    const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-    
-    const datosConfig = {
-        monto_2dias: document.getElementById('in-monto-2dias').value,
-        monto_3dias: document.getElementById('in-monto-3dias').value,
-        monto_4dias: document.getElementById('in-monto-4dias').value,
-        monto_5dias: document.getElementById('in-monto-5dias').value,
-        interes: document.getElementById('in-interes').value
-    };
-
-    try {
-        const response = await fetch(`https://booty-gym-backend.onrender.com/config?gym_id=${gymId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosConfig)
-        });
+    guardarConfig: async function() {
+        const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
         
-        if (response.ok) {
-            alert('Configuración guardada exitosamente');
-            window.GymApp.cambiarVista('PAGOS');
-        } else {
-            alert('Error al guardar la configuración');
+        const datosConfig = {
+            monto_2dias: document.getElementById('in-monto-2dias').value,
+            monto_3dias: document.getElementById('in-monto-3dias').value,
+            monto_4dias: document.getElementById('in-monto-4dias').value,
+            monto_5dias: document.getElementById('in-monto-5dias').value,
+            interes: document.getElementById('in-interes').value
+        };
+
+        try {
+            const response = await fetch(`https://booty-gym-backend.onrender.com/config?gym_id=${gymId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosConfig)
+            });
+            
+            if (response.ok) {
+                alert('Configuración guardada exitosamente');
+                window.GymApp.cambiarVista('PAGOS');
+            } else {
+                alert('Error al guardar la configuración');
+            }
+        } catch (e) {
+            console.error('Error:', e);
         }
-   } catch (e) {
-        console.error('Error:', e);
     }
-}
 };
