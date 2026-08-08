@@ -594,11 +594,10 @@ window.GymApp.pagos = {
                 alert('Configuración guardada exitosamente');
                 window.GymApp.cambiarVista('PAGOS');
             } else {
-                const errorText = await response.text();
-                alert(`Error al guardar la configuración: ${errorText}`);
+                alert('Error al guardar la configuración');
             }
         } catch (e) {
-            console.error('Error de red:', e);
-            alert('No se pudo conectar con el servidor para guardar la configuración.');
+            console.error('Error:', e);
         }
     }
+};
