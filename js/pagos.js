@@ -564,42 +564,28 @@ if (resConfig.ok) {
     },
 
  guardarConfig: async function() {
-        const monto2dias = document.getElementById('in-monto-2dias').value;
-        const monto3dias = document.getElementById('in-monto-3dias').value;
-        const monto4dias = document.getElementById('in-monto-4dias').value;
-        const monto5dias = document.getElementById('in-monto-5dias').value;
-        const interes = document.getElementById('in-interes').value;
-        const gymId = localStorage.getItem('gym_id');
+    // Asegúrate de que estos IDs coincidan con los de tu HTML
+    const configData = {
+        gym_id: localStorage.getItem('gym_id') || 'general',
+        monto_2dias: document.getElementById('in-monto-2dias').value,
+        monto_3dias: document.getElementById('in-monto-3dias').value,
+        monto_4dias: document.getElementById('in-monto-4dias').value,
+        monto_5dias: document.getElementById('in-monto-5dias').value,
+        interes: document.getElementById('in-interes').value
+    };
 
-        try {
-            const response = await fetch('https://booty-gym-backend.onrender.com/config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    gym_id: gymId,
-                    monto_2dias: monto2dias, 
-                    monto_3dias: monto3dias, 
-                    monto_4dias: monto4dias, 
-                    monto_5dias: monto5dias, 
-                    interes: interes 
-                })
-            });
-            
-            if (response.ok) {
-                window.GymApp.config.pagosConfig.monto2dias = monto2dias;
-                window.GymApp.config.pagosConfig.monto3dias = monto3dias;
-                window.GymApp.config.pagosConfig.monto4dias = monto4dias;
-                window.GymApp.config.pagosConfig.monto5dias = monto5dias;
-                window.GymApp.config.pagosConfig.interesPorcentaje = interes;
-                alert("Configuración guardada en el servidor");
-                window.GymApp.cambiarVista('PAGOS');
-            } else {
-                const errorTexto = await response.text();
-                alert("Error al guardar en el servidor: " + errorTexto);
-            }
-        } catch (e) {
-            console.error("Error al guardar:", e);
-            alert("No se pudo conectar con el servidor para guardar la configuración.");
+    try {
+        const response = await fetch('https://booty-gym-backend.onrender.com/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(configData)
+        });
+        
+        if (response.ok) {
+            alert("Configuración guardada exitosamente");
+            window.GymApp.cambiarVista('PAGOS');
         }
+    } catch (e) {
+        console.error("Error:", e);
     }
-};
+});
