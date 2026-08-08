@@ -52,7 +52,7 @@ setTimeout(() => {
     }
 }, 500);
 
-// 4. Definimos la función de navegación (MANTENIDA SIN CAMBIOS)
+// 4. Definimos la función de navegación (MANTENIDA SIN CAMBIOS EXCEPTO CONFIG)
 window.GymApp.cambiarVista = function(vista) {
     if (!window.GymApp.adminLogueado) {
         document.getElementById('sidebar').style.display = 'none';
@@ -80,11 +80,22 @@ window.GymApp.cambiarVista = function(vista) {
             main.innerHTML = `
                 ${window.GymApp.renderLogo()}
                 <h2 style="color: #ff9a8b; text-align: center;">Configuración de Pagos</h2>
-                <div style="max-width: 300px; margin: 20px auto; background: rgba(20,20,20,0.85); padding: 20px; border-radius: 15px; border: 1px solid #333; color: #fff;">
-                    <label>Monto Cuota ($):</label>
-                    <input type="number" id="in-monto" value="${window.GymApp.config.pagosConfig.montoCuota}" style="width:100%; margin-bottom:15px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                <div style="max-width: 350px; margin: 20px auto; background: rgba(20,20,20,0.85); padding: 20px; border-radius: 15px; border: 1px solid #333; color: #fff;">
+                    <label>Monto 2 Días ($):</label>
+                    <input type="number" id="in-monto-2dias" value="${window.GymApp.config.pagosConfig.monto2dias || ''}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    
+                    <label>Monto 3 Días ($):</label>
+                    <input type="number" id="in-monto-3dias" value="${window.GymApp.config.pagosConfig.monto3dias || ''}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    
+                    <label>Monto 4 Días ($):</label>
+                    <input type="number" id="in-monto-4dias" value="${window.GymApp.config.pagosConfig.monto4dias || ''}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    
+                    <label>Monto 5 Días ($):</label>
+                    <input type="number" id="in-monto-5dias" value="${window.GymApp.config.pagosConfig.monto5dias || ''}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+
                     <label>Interés (%):</label>
-                    <input type="number" id="in-interes" value="${window.GymApp.config.pagosConfig.interesPorcentaje}" style="width:100%; margin-bottom:20px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    <input type="number" id="in-interes" value="${window.GymApp.config.pagosConfig.interesPorcentaje || ''}" style="width:100%; margin-bottom:20px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    
                     <button onclick="window.GymApp.pagos.guardarConfig()" style="width:100%; padding:10px; background:#ff9a8b; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">GUARDAR CAMBIOS</button>
                 </div>`;
             break;
@@ -118,7 +129,8 @@ window.addEventListener('load', () => {
             userDisplay.innerText = "Admin: " + admin;
         }
     }
-});// Agrega esto en tu app.js para que el botón funcione de verdad:
+});
+
 async function solicitarCodigoRecuperacion(username) {
     try {
         const respuesta = await fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
@@ -131,7 +143,6 @@ async function solicitarCodigoRecuperacion(username) {
         
         if (resultado.success) {
             alert("¡Código generado con éxito! Revisa la consola de tu servidor en Render para ver el código.");
-            // Aquí puedes cambiar de pantalla para que el usuario ingrese el código
         } else {
             alert(resultado.message);
         }
