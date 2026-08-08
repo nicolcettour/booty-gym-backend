@@ -563,10 +563,10 @@ if (resConfig.ok) {
         main.innerHTML = html;
     },
 
- guardarConfig: async function() {
-    // Asegúrate de que estos IDs coincidan con los de tu HTML
-    const configData = {
-        gym_id: localStorage.getItem('gym_id') || 'general',
+guardarConfig: async function() {
+    const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
+    
+    const datosConfig = {
         monto_2dias: document.getElementById('in-monto-2dias').value,
         monto_3dias: document.getElementById('in-monto-3dias').value,
         monto_4dias: document.getElementById('in-monto-4dias').value,
@@ -575,18 +575,19 @@ if (resConfig.ok) {
     };
 
     try {
-        const response = await fetch('https://booty-gym-backend.onrender.com/config', {
+        const response = await fetch(`https://booty-gym-backend.onrender.com/config?gym_id=${gymId}`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(configData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datosConfig)
         });
         
         if (response.ok) {
-            alert("Configuración guardada exitosamente");
+            alert('Configuración guardada exitosamente');
             window.GymApp.cambiarVista('PAGOS');
+        } else {
+            alert('Error al guardar la configuración');
         }
     } catch (e) {
-        console.error("Error:", e);
+        console.error('Error:', e);
     }
-  } // <-- Llave que cierra la función guardarConfig o la función actual
-};
+}
