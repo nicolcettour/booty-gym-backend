@@ -75,7 +75,7 @@ window.GymApp.pagos = {
         try {
             const gymId = localStorage.getItem('gym_id');
             const usuarioActual = localStorage.getItem('admin_user') || 'default';
-            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
+            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_global`;
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             const res = await fetch(url);
@@ -352,7 +352,7 @@ window.GymApp.pagos = {
         try {
             const gymId = localStorage.getItem('gym_id');
             let usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
-            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_${usuarioActual}`;
+            const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_global`;
             
             const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
             
