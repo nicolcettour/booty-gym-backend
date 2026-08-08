@@ -562,16 +562,26 @@ window.GymApp.pagos = {
         main.innerHTML = html;
     },
 
-    guardarConfig: async function() {
+   
+      guardarConfig: async function() {
         const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
         
+        const input2 = document.getElementById('in-monto-2dias');
+        const input3 = document.getElementById('in-monto-3dias');
+        const input4 = document.getElementById('in-monto-4dias');
+        const input5 = document.getElementById('in-monto-5dias');
+        const inputInteres = document.getElementById('in-interes');
+
         const datosConfig = {
-            monto_2dias: document.getElementById('in-monto-2dias').value,
-            monto_3dias: document.getElementById('in-monto-3dias').value,
-            monto_4dias: document.getElementById('in-monto-4dias').value,
-            monto_5dias: document.getElementById('in-monto-5dias').value,
-            interes: document.getElementById('in-interes').value
+            gym_id: gymId,
+            monto_2dias: input2 ? (Number(input2.value) || 0) : 0,
+            monto_3dias: input3 ? (Number(input3.value) || 0) : 0,
+            monto_4dias: input4 ? (Number(input4.value) || 0) : 0,
+            monto_5dias: input5 ? (Number(input5.value) || 0) : 0,
+            interes: inputInteres ? (Number(inputInteres.value) || 0) : 0
         };
+
+        console.log("Enviando configuración:", datosConfig);
 
         try {
             const response = await fetch(`https://booty-gym-backend.onrender.com/config?gym_id=${gymId}`, {
@@ -584,10 +594,11 @@ window.GymApp.pagos = {
                 alert('Configuración guardada exitosamente');
                 window.GymApp.cambiarVista('PAGOS');
             } else {
-                alert('Error al guardar la configuración');
+                const errorText = await response.text();
+                alert(`Error al guardar la configuración: ${errorText}`);
             }
         } catch (e) {
-            console.error('Error:', e);
+            console.error('Error de red:', e);
+            alert('No se pudo conectar con el servidor para guardar la configuración.');
         }
     }
-};
