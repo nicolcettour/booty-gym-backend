@@ -206,18 +206,14 @@ app.post('/pagos', async (req, res) => {
 app.get('/config', async (req, res) => {
     try {
         const idGym = req.query.gym_id || 'general';
+        // El * asegura que traiga monto_2dias, monto_3dias, etc.
         const resultado = await db.query('SELECT * FROM configuracion WHERE gym_id = $1', [idGym]);
         
         if (resultado.rows.length > 0) {
             res.json(resultado.rows[0]);
         } else {
-            res.json({ 
-                monto_2dias: 0, 
-                monto_3dias: 0, 
-                monto_4dias: 0, 
-                monto_5dias: 0, 
-                interes: 0 
-            });
+            // Valores por defecto
+            res.json({ monto_2dias: 0, monto_3dias: 0, monto_4dias: 0, monto_5dias: 0, interes: 0 });
         }
     } catch (err) {
         console.error("Error al obtener config:", err);
