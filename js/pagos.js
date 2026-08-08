@@ -146,6 +146,33 @@ window.GymApp.pagos = {
         }
     },
 
+    obtenerFrecuenciaSemanal: function(c) {
+        let cant = 2;
+        if (Array.isArray(c.dias)) {
+            cant = c.dias.length;
+        } else if (typeof c.dias === 'string' && c.dias.trim() !== '') {
+            cant = c.dias.split(',').length;
+        } else if (typeof c.dias === 'number') {
+            cant = c.dias;
+        } else if (typeof c.dias_asistencia === 'number') {
+            cant = c.dias_asistencia;
+        } else if (typeof c.dias_asistencia === 'string' && c.dias_asistencia.trim() !== '') {
+            cant = c.dias_asistencia.split(',').length;
+        }
+        
+        if (cant > 5) cant = 5;
+        if (cant < 2) cant = 2;
+        return cant;
+    },
+
+    obtenerMontoBasePorClienta: function(c, configPagos) {
+        let cantDias = this.obtenerFrecuenciaSemanal(c);
+        if (cantDias === 5) return Number(configPagos.monto5dias);
+        if (cantDias === 4) return Number(configPagos.monto4dias);
+        if (cantDias === 3) return Number(configPagos.monto3dias);
+        return Number(configPagos.monto2dias);
+    },
+
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
@@ -201,37 +228,6 @@ window.GymApp.pagos = {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
- const obtenerFrecuenciaSemanal = (c) => {
-            let cant = 2;
-            
-            // 1. Si es un arreglo (ej: ['Lunes', 'Miércoles'])
-            if (Array.isArray(c.dias)) {
-                cant = c.dias.length;
-            } 
-            // 2. Si viene como texto separado por comas (ej: "Lunes, Miércoles, Viernes")
-            else if (typeof c.dias === 'string' && c.dias.trim() !== '') {
-                cant = c.dias.split(',').length;
-            } 
-            // 3. Si viene directamente como un número en c.dias
-            else if (typeof c.dias === 'number') {
-                cant = c.dias;
-            } 
-            // 4. Si viene en otra propiedad numérica como dias_asistencia
-            else if (typeof c.dias_asistencia === 'number') {
-                cant = c.dias_asistencia;
-            }
-            // 5. Si viene como string en dias_asistencia
-            else if (typeof c.dias_asistencia === 'string' && c.dias_asistencia.trim() !== '') {
-                cant = c.dias_asistencia.split(',').length;
-            }
-            
-            if (cant > 5) {
-                cant = 5;
-            }
-            if (cant < 2) cant = 2;
-            return cant;
-        };
-
         ul.innerHTML = clientas.map((c, i) => {
             const pagoEncontrado = pagosRegistrados.find(p => {
                 if (p.clienta_id !== c.id) return false;
@@ -242,8 +238,8 @@ window.GymApp.pagos = {
                 return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
             });
 
-            let montoBaseClienta = obtenerMontoBasePorClienta(c);
-            let frecuenciaSemanal = obtenerFrecuenciaSemanal(c);
+            let montoBaseClienta = this.obtenerMontoBasePorClienta(c, configPagos);
+            let frecuenciaSemanal = this.obtenerFrecuenciaSemanal(c);
 
             if (pagoEncontrado) {
                 totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
