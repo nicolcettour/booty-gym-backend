@@ -211,12 +211,13 @@ app.get('/config', async (req, res) => {
         if (resultado.rows.length > 0) {
             res.json(resultado.rows[0]);
         } else {
+            // Si no existe, devolvemos un objeto con la estructura nueva vacía en 0
             res.json({ 
-                monto_2dias: 30000, 
-                monto_3dias: 35000, 
-                monto_4dias: 40000, 
-                monto_5dias: 45000, 
-                interes: 10 
+                monto_2dias: 0, 
+                monto_3dias: 0, 
+                monto_4dias: 0, 
+                monto_5dias: 0, 
+                interes: 0 
             });
         }
     } catch (err) {
