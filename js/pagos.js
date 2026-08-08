@@ -201,14 +201,28 @@ window.GymApp.pagos = {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
-        const obtenerFrecuenciaSemanal = (c) => {
+ const obtenerFrecuenciaSemanal = (c) => {
             let cant = 2;
+            
+            // 1. Si es un arreglo (ej: ['Lunes', 'Miércoles'])
             if (Array.isArray(c.dias)) {
                 cant = c.dias.length;
-            } else if (typeof c.dias === 'number') {
+            } 
+            // 2. Si viene como texto separado por comas (ej: "Lunes, Miércoles, Viernes")
+            else if (typeof c.dias === 'string' && c.dias.trim() !== '') {
+                cant = c.dias.split(',').length;
+            } 
+            // 3. Si viene directamente como un número en c.dias
+            else if (typeof c.dias === 'number') {
                 cant = c.dias;
-            } else if (typeof c.dias_asistencia === 'number') {
+            } 
+            // 4. Si viene en otra propiedad numérica como dias_asistencia
+            else if (typeof c.dias_asistencia === 'number') {
                 cant = c.dias_asistencia;
+            }
+            // 5. Si viene como string en dias_asistencia
+            else if (typeof c.dias_asistencia === 'string' && c.dias_asistencia.trim() !== '') {
+                cant = c.dias_asistencia.split(',').length;
             }
             
             if (cant > 5) {
@@ -216,14 +230,6 @@ window.GymApp.pagos = {
             }
             if (cant < 2) cant = 2;
             return cant;
-        };
-
-        const obtenerMontoBasePorClienta = (c) => {
-            let cantDias = obtenerFrecuenciaSemanal(c);
-            if (cantDias === 5) return Number(configPagos.monto5dias);
-            if (cantDias === 4) return Number(configPagos.monto4dias);
-            if (cantDias === 3) return Number(configPagos.monto3dias);
-            return Number(configPagos.monto2dias);
         };
 
         ul.innerHTML = clientas.map((c, i) => {
