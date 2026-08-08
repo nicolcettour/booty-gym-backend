@@ -205,13 +205,13 @@ app.post('/pagos', async (req, res) => {
 // --- RUTAS CONFIGURACIÓN ---
 app.get('/config', async (req, res) => {
     try {
-        const idGym = req.query.gym_id || 'general';
+        const idGym = req.query.gym_id || 'BOOTY_GYM_001';
+        // Usar * para que devuelva todas las columnas de la tabla (monto_2dias, etc.)
         const resultado = await db.query('SELECT * FROM configuracion WHERE gym_id = $1', [idGym]);
         
         if (resultado.rows.length > 0) {
             res.json(resultado.rows[0]);
         } else {
-            // Si no existe, devolvemos un objeto con la estructura nueva vacía en 0
             res.json({ 
                 monto_2dias: 0, 
                 monto_3dias: 0, 
@@ -225,7 +225,6 @@ app.get('/config', async (req, res) => {
         res.status(500).send('Error al obtener configuración');
     }
 });
-
 app.post('/config', async (req, res) => {
     const { gym_id, monto_2dias, monto_3dias, monto_4dias, monto_5dias, interes } = req.body;
     const idGym = gym_id || 'general'; // O el identificador que uses en tu backend
