@@ -167,8 +167,11 @@ window.GymApp.pagos = {
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
                 window.GymApp.config.pagosConfig = {
-                    montoCuota: dataConfig.monto_cuota || dataConfig.montoCuota,
-                    interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje
+                    monto2dias: dataConfig.monto_2dias || dataConfig.monto2dias || dataConfig.monto_cuota || 0,
+                    monto3dias: dataConfig.monto_3dias || dataConfig.monto3dias || dataConfig.monto_cuota || 0,
+                    monto4dias: dataConfig.monto_4dias || dataConfig.monto4dias || dataConfig.monto_cuota || 0,
+                    monto5dias: dataConfig.monto_5dias || dataConfig.monto5dias || dataConfig.monto_cuota || 0,
+                    interesPorcentaje: dataConfig.interes || dataConfig.interesPorcentaje || 0
                 };
             }
         } catch (err) {
@@ -184,7 +187,7 @@ window.GymApp.pagos = {
         });
 
         const pagosRegistrados = window.GymApp.pagosMesActual || [];
-        const configPagos = window.GymApp.config.pagosConfig || { montoCuota: 0, interesPorcentaje: 0 };
+        const configPagos = window.GymApp.config.pagosConfig || { monto2dias: 0, monto3dias: 0, monto4dias: 0, monto5dias: 0, interesPorcentaje: 0 };
         
         const mesActual = new Date().getMonth() + 1;
         const anioActual = new Date().getFullYear();
@@ -193,8 +196,23 @@ window.GymApp.pagos = {
         let totalCobrado = 0;
         let totalAdeudado = 0;
 
-        let montoBase = Number(configPagos.montoCuota || 0);
-        let montoConInteres = montoBase + (montoBase * (Number(configPagos.interesPorcentaje || 0) / 100));
+        // Función auxiliar para obtener el monto según los días de la clienta (por defecto 2 o los que tenga registrados)
+        const obtenerMontoBasePorClienta = (c) => {
+            // Evaluamos cuántos días seleccionó/tiene la clienta (puede venir en c.dias como array o número)
+            let cantDias = 2; // Por defecto
+            if (Array.isArray(c.dias)) {
+                cantDias = c.dias.length;
+            } else if (typeof c.dias === 'number') {
+                cantDias = c.dias;
+            } else if (typeof c.dias_asistencia === 'number') {
+                cantDias = c.dias_asistencia;
+            }
+
+            if (cantDias === 3) return Number(configPagos.monto3dias);
+            if (cantDias === 4) return Number(configPagos.monto4dias);
+            if (cantDias === 5) return Number(configPagos.monto5dias);
+            return Number(configPagos.monto2dias); // 2 días por defecto o menor
+        };
 
         ul.innerHTML = clientas.map((c, i) => {
             const pagoEncontrado = pagosRegistrados.find(p => {
@@ -206,16 +224,21 @@ window.GymApp.pagos = {
                 return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
             });
 
+            let montoBaseClienta = obtenerMontoBasePorClienta(c);
+
             if (pagoEncontrado) {
-                totalCobrado += Number(pagoEncontrado.monto || montoBase);
+                totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
-                            ${c.nombre} ${c.apellido}: <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBase} ✅ Pagado</span>
+                            ${c.nombre} ${c.apellido}: <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>
                         </li>`;
             } else {
-                let montoAPagar = (diaActual > 10) ? montoConInteres : montoBase;
+                let interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
+                let montoConInteresClienta = montoBaseClienta + (montoBaseClienta * interesDecimal);
+                let montoAPagar = (diaActual > 10) ? montoConInteresClienta : montoBaseClienta;
                 totalAdeudado += montoAPagar;
+
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
-                            <span>${c.nombre} ${c.apellido}: $${Math.round(montoAPagar)}</span>
+                            <span>${c.nombre} ${c.apellido} (${c.dias ? c.dias.length : 2} días): $${Math.round(montoAPagar)}</span>
                             <button id="btn-pagar-${c.id}" onclick="window.GymApp.pagos.registrar(${i}, ${Math.round(montoAPagar)}, this)" style="background: linear-gradient(to right, #ff9a8b, #ff6a88); color: black; border: none; padding: 5px 15px; border-radius: 15px; font-weight: bold; cursor: pointer;">Registrar</button>
                         </li>`;
             }
@@ -253,7 +276,7 @@ window.GymApp.pagos = {
         }
     },
 
-registrar: async function(i, monto, botonElement) {
+    registrar: async function(i, monto, botonElement) {
         const clienta = window.GymApp.config.clientas[i];
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -309,6 +332,7 @@ registrar: async function(i, monto, botonElement) {
             }
         }
     },
+
     realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
@@ -524,16 +548,29 @@ registrar: async function(i, monto, botonElement) {
     },
 
     guardarConfig: async function() {
-        const monto = document.getElementById('in-monto').value;
+        const monto2dias = document.getElementById('in-monto-2dias').value;
+        const monto3dias = document.getElementById('in-monto-3dias').value;
+        const monto4dias = document.getElementById('in-monto-4dias').value;
+        const monto5dias = document.getElementById('in-monto-5dias').value;
         const interes = document.getElementById('in-interes').value;
+
         try {
             const response = await fetch('https://booty-gym-backend.onrender.com/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ monto_cuota: monto, interes: interes })
+                body: JSON.stringify({ 
+                    monto_2dias: monto2dias, 
+                    monto_3dias: monto3dias, 
+                    monto_4dias: monto4dias, 
+                    monto_5dias: monto5dias, 
+                    interes: interes 
+                })
             });
             if (response.ok) {
-                window.GymApp.config.pagosConfig.montoCuota = monto;
+                window.GymApp.config.pagosConfig.monto2dias = monto2dias;
+                window.GymApp.config.pagosConfig.monto3dias = monto3dias;
+                window.GymApp.config.pagosConfig.monto4dias = monto4dias;
+                window.GymApp.config.pagosConfig.monto5dias = monto5dias;
                 window.GymApp.config.pagosConfig.interesPorcentaje = interes;
                 alert("Configuración guardada en el servidor");
                 window.GymApp.cambiarVista('PAGOS');
