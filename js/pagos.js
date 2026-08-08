@@ -561,18 +561,20 @@ window.GymApp.pagos = {
         main.innerHTML = html;
     },
 
-    guardarConfig: async function() {
+ guardarConfig: async function() {
         const monto2dias = document.getElementById('in-monto-2dias').value;
         const monto3dias = document.getElementById('in-monto-3dias').value;
         const monto4dias = document.getElementById('in-monto-4dias').value;
         const monto5dias = document.getElementById('in-monto-5dias').value;
         const interes = document.getElementById('in-interes').value;
+        const gymId = localStorage.getItem('gym_id');
 
         try {
             const response = await fetch('https://booty-gym-backend.onrender.com/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ 
+                    gym_id: gymId,
                     monto_2dias: monto2dias, 
                     monto_3dias: monto3dias, 
                     monto_4dias: monto4dias, 
@@ -580,6 +582,7 @@ window.GymApp.pagos = {
                     interes: interes 
                 })
             });
+            
             if (response.ok) {
                 window.GymApp.config.pagosConfig.monto2dias = monto2dias;
                 window.GymApp.config.pagosConfig.monto3dias = monto3dias;
@@ -588,10 +591,13 @@ window.GymApp.pagos = {
                 window.GymApp.config.pagosConfig.interesPorcentaje = interes;
                 alert("Configuración guardada en el servidor");
                 window.GymApp.cambiarVista('PAGOS');
+            } else {
+                const errorTexto = await response.text();
+                alert("Error al guardar en el servidor: " + errorTexto);
             }
         } catch (e) {
             console.error("Error al guardar:", e);
-            alert("No se pudo guardar la configuración");
+            alert("No se pudo conectar con el servidor para guardar la configuración.");
         }
     }
 };
