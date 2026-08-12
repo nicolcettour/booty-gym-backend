@@ -27,24 +27,22 @@ window.GymApp.init = async function() {
         window.GymApp.config.clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
     }
 
-    // --- NUEVO: CARGAR CONFIGURACIÓN GLOBAL DESDE POSTGRESQL ---
+    // --- CARGAR CONFIGURACIÓN GLOBAL DESDE POSTGRESQL ---
     try {
-    const res = await fetch('https://booty-gym-backend.onrender.com/');
-    const text = await res.text();
-    // Intentar parsear a JSON de forma segura
-    const data = text.startsWith('{') ? JSON.parse(text) : { message: text };
-    console.log("Config cargada:", data);
-} catch (error) {
-    console.warn("No se pudo cargar la config del servidor, usando respaldo local:", error);
-}
+        const res = await fetch('https://booty-gym-backend.onrender.com/');
+        const text = await res.text();
+        // Intentar parsear a JSON de forma segura
+        const data = text.startsWith('{') ? JSON.parse(text) : { message: text };
+        console.log("Config cargada:", data);
+    } catch (error) {
+        console.warn("No se pudo cargar la config del servidor, usando respaldo local:", error);
+    }
 };
 
 // 3. Ejecutamos el init
 window.GymApp.init();
 
 // --- INICIO DE SEGURIDAD Y LOGIN ---
-// IMPORTANTE: Asegúrate de que en tu lógica de login cuando el login sea exitoso, guardes el ID así: localStorage.setItem('gym_id', data.gym_id);
-
 setTimeout(() => {
     if (!window.GymApp.adminLogueado && window.GymApp.login) {
         document.getElementById('sidebar').style.display = 'none';
@@ -52,7 +50,7 @@ setTimeout(() => {
     }
 }, 500);
 
-// 4. Definimos la función de navegación (MANTENIDA SIN CAMBIOS EXCEPTO CONFIG)
+// 4. Definimos la función de navegación
 window.GymApp.cambiarVista = function(vista) {
     if (!window.GymApp.adminLogueado) {
         document.getElementById('sidebar').style.display = 'none';
