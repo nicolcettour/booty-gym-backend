@@ -314,13 +314,13 @@ guardar: async function() {
         };
 
         try {
-            let url = 'http://localhost:3000/clientas';
-            let method = 'POST';
+    let url = 'https://booty-gym-backend.onrender.com/clientas';
+    let method = 'POST';
 
-            if (index !== "" && clientId) {
-                url = `http://localhost:3000/clientas/${clientId}`;
-                method = 'PUT';
-            }
+    if (index !== "" && clientId) {
+        url = `https://booty-gym-backend.onrender.com/clientas/${clientId}`;
+        method = 'PUT';
+    }
 
             // 1. Espía antes del fetch
             console.log("🔍 OBJETO COMPLETO QUE SE ENVÍA AL SERVIDOR:", JSON.stringify(nuevaClienta));
