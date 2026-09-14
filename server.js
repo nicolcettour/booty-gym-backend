@@ -262,31 +262,178 @@ const obtenerToken = (req) => {
 
     return authorization.substring(7);
 };
-
 // ============================================================
-// RUTAS DE CLIENTAS
+// SEGURIDAD - SESIÓN ADMINISTRATIVA MULTISUCURSAL
 // ============================================================
 
-app.get('/clientas', async (req, res) => {
+const generarTokenAdmin = (username, gymId) => {
+
+    const payload = {
+        username,
+        gym_id: gymId,
+        tipo: 'admin',
+        exp: Date.now() + (12 * 60 * 60 * 1000)
+    };
+
+    const payloadBase64 = Buffer
+        .from(JSON.stringify(payload))
+        .toString('base64url');
+
+    const secret =
+        process.env.ADMIN_AUTH_SECRET ||
+        process.env.CLIENTAS_AUTH_SECRET ||
+        'BOOTY_GYM_ADMIN_SECRET_CAMBIAR_EN_PRODUCCION';
+
+    const firma = crypto
+        .createHmac('sha256', secret)
+        .update(payloadBase64)
+        .digest('base64url');
+
+    return `${payloadBase64}.${firma}`;
+};
+
+
+const verificarTokenAdmin = (token) => {
 
     try {
 
-        const result = await db.query(
-            'SELECT * FROM clientas WHERE gym_id = $1 ORDER BY nombre ASC, apellido ASC',
-            [GIMNASIO_ACTUAL]
+        if (!token) {
+            return null;
+        }
+
+        const partes = token.split('.');
+
+        if (partes.length !== 2) {
+            return null;
+        }
+
+        const [
+            payloadBase64,
+            firma
+        ] = partes;
+
+        const secret =
+            process.env.ADMIN_AUTH_SECRET ||
+            process.env.CLIENTAS_AUTH_SECRET ||
+            'BOOTY_GYM_ADMIN_SECRET_CAMBIAR_EN_PRODUCCION';
+
+        const firmaEsperada = crypto
+            .createHmac('sha256', secret)
+            .update(payloadBase64)
+            .digest('base64url');
+
+        const firmaBuffer =
+            Buffer.from(firma, 'utf8');
+
+        const firmaEsperadaBuffer =
+            Buffer.from(firmaEsperada, 'utf8');
+
+        if (
+            firmaBuffer.length !==
+            firmaEsperadaBuffer.length
+        ) {
+            return null;
+        }
+
+        if (
+            !crypto.timingSafeEqual(
+                firmaBuffer,
+                firmaEsperadaBuffer
+            )
+        ) {
+            return null;
+        }
+
+        const payload = JSON.parse(
+            Buffer
+                .from(
+                    payloadBase64,
+                    'base64url'
+                )
+                .toString('utf8')
         );
 
-        res.status(200).json(result.rows);
+        if (
+            payload.tipo !== 'admin' ||
+            !payload.username ||
+            !payload.gym_id ||
+            !payload.exp
+        ) {
+            return null;
+        }
+
+        if (Date.now() > payload.exp) {
+            return null;
+        }
+
+        return payload;
+
+    } catch (error) {
+
+        console.error(
+            'Error verificando sesión administrativa:',
+            error
+        );
+
+        return null;
+    }
+};
+
+
+const requerirAdmin = (req, res, next) => {
+
+    const token =
+        obtenerToken(req);
+
+    const sesion =
+        verificarTokenAdmin(token);
+
+    if (!sesion) {
+
+        return res.status(401).json({
+            error:
+                'Sesión administrativa inválida o vencida'
+        });
+    }
+
+    req.admin = sesion;
+
+    next();
+};
+// ============================================================
+// RUTAS DE CLIENTAS
+// ============================================================
+app.get('/clientas', requerirAdmin, async (req, res) => {
+
+    try {
+
+        const result =
+            await db.query(
+                `
+                SELECT *
+                FROM clientas
+                WHERE gym_id = $1
+                ORDER BY nombre ASC, apellido ASC
+                `,
+                [
+                    req.admin.gym_id
+                ]
+            );
+
+        res.status(200).json(
+            result.rows
+        );
 
     } catch (err) {
 
         console.error(
-            "Error al obtener clientas:",
+            'Error al obtener clientas:',
             err
         );
 
         res.status(500).json({
-            error: 'Error al obtener clientas'
+            error:
+                'Error al obtener clientas'
         });
     }
 });
@@ -295,7 +442,7 @@ app.get('/clientas', async (req, res) => {
 // ------------------------------------------------------------
 // CREAR CLIENTA
 // ------------------------------------------------------------
-app.post('/clientas', async (req, res) => {
+app.post('/clientas', requerirAdmin, async (req, res) => {
     try {
         const {
             nombre,
@@ -326,7 +473,11 @@ app.post('/clientas', async (req, res) => {
             ? dias.join(', ')
             : (dias || '');
 
-        console.log("Datos recibidos para guardar:", { dni, email, nombre: nombreFormateado });
+        console.log("Datos recibidos para guardar:", {
+            dni,
+            email,
+            nombre: nombreFormateado
+        });
 
         const query = `
             INSERT INTO clientas
@@ -361,25 +512,25 @@ app.post('/clientas', async (req, res) => {
         `;
 
         const values = [
-            nombreFormateado,           // $1
-            apellidoFormateado,         // $2
-            dni || '',                  // $3
-            email || '',                // $4
-            contacto || '',             // $5
-            ubicacion || '',            // $6
-            peso || null,               // $7
-            alturaFormateada || null,   // $8
-            horario || '',              // $9
-            diasTexto,                  // $10
-            busto || null,              // $11
-            cintura || null,            // $12
-            cadera || null,             // $13
-            abductores || null,         // $14
-            cuadriceps || null,         // $15
-            gemelos || null,            // $16
-            salud || 'no',              // $17
-            objetivo || '',             // $18
-            GIMNASIO_ACTUAL             // $19
+            nombreFormateado,         // $1
+            apellidoFormateado,       // $2
+            dni || '',                // $3
+            email || '',              // $4
+            contacto || '',           // $5
+            ubicacion || '',          // $6
+            peso || null,             // $7
+            alturaFormateada || null, // $8
+            horario || '',            // $9
+            diasTexto,                // $10
+            busto || null,            // $11
+            cintura || null,           // $12
+            cadera || null,            // $13
+            abductores || null,        // $14
+            cuadriceps || null,        // $15
+            gemelos || null,           // $16
+            salud || 'no',             // $17
+            objetivo || '',            // $18
+            req.admin.gym_id           // $19
         ];
 
         const result = await db.query(query, values);
@@ -392,12 +543,11 @@ app.post('/clientas', async (req, res) => {
     }
 });
 
-
 // ------------------------------------------------------------
 // MODIFICAR CLIENTA
 // ------------------------------------------------------------
 
-app.put('/clientas/:id', async (req, res) => {
+app.put('/clientas/:id', requerirAdmin, async (req, res) => {
 
     try {
 
@@ -520,7 +670,7 @@ app.put('/clientas/:id', async (req, res) => {
             salud,
             objetivo,
             id,
-            GIMNASIO_ACTUAL
+            req.admin.gym_id
 
         ];
 
@@ -553,7 +703,7 @@ app.put('/clientas/:id', async (req, res) => {
 // ELIMINAR CLIENTA
 // ------------------------------------------------------------
 
-app.delete('/clientas/:id', async (req, res) => {
+app.delete('/clientas/:id', requerirAdmin, async (req, res) => {
 
     try {
 
@@ -561,7 +711,7 @@ app.delete('/clientas/:id', async (req, res) => {
 
         await db.query(
             'DELETE FROM pagos WHERE clienta_id = $1 AND gym_id = $2',
-            [id, GIMNASIO_ACTUAL]
+            [id, req.admin.gym_id]
         );
 
         const query =
@@ -570,7 +720,7 @@ app.delete('/clientas/:id', async (req, res) => {
         const result =
             await db.query(
                 query,
-                [id, GIMNASIO_ACTUAL]
+                [id, req.admin.gym_id]
             );
 
         if (result.rowCount === 0) {
@@ -1173,14 +1323,13 @@ app.post('/clientas/auth/reset-password', async (req, res) => {
 // ============================================================
 // RUTAS DE PAGOS
 // ============================================================
-
-app.get('/pagos', async (req, res) => {
+app.get('/pagos', requerirAdmin, async (req, res) => {
 
     try {
 
         const result = await db.query(
             'SELECT * FROM pagos WHERE gym_id = $1 ORDER BY id DESC',
-            [GIMNASIO_ACTUAL]
+            [req.admin.gym_id]
         );
 
         res.status(200).json(result.rows);
@@ -1199,7 +1348,7 @@ app.get('/pagos', async (req, res) => {
 });
 
 
-app.get('/pagos/agrupados', async (req, res) => {
+app.get('/pagos/agrupados', requerirAdmin, async (req, res) => {
 
     try {
 
@@ -1219,7 +1368,7 @@ app.get('/pagos/agrupados', async (req, res) => {
         const result =
             await db.query(
                 query,
-                [GIMNASIO_ACTUAL]
+                [req.admin.gym_id]
             );
 
         res.json(result.rows);
@@ -1238,12 +1387,11 @@ app.get('/pagos/agrupados', async (req, res) => {
 });
 
 
-app.post('/pagos', async (req, res) => {
+app.post('/pagos', requerirAdmin, async (req, res) => {
 
     try {
 
         const {
-            gym_id,
             clienta_id,
             monto,
             mes,
@@ -1272,7 +1420,7 @@ app.post('/pagos', async (req, res) => {
         await db.query(
             query,
             [
-                gym_id || 'BOOTY_GYM_001',
+                req.admin.gym_id,
                 clienta_id,
                 monto,
                 mes || new Date().getMonth() + 1,
@@ -1302,18 +1450,14 @@ app.post('/pagos', async (req, res) => {
     }
 });
 
-
 // ============================================================
 // RUTAS CONFIGURACIÓN
 // ============================================================
-
-app.get('/config', async (req, res) => {
+app.get('/config', requerirAdmin, async (req, res) => {
 
     try {
 
-        const idGym =
-            req.query.gym_id ||
-            'BOOTY_GYM_001';
+        const idGym = req.admin.gym_id;
 
         const resultado =
             await db.query(
@@ -1354,10 +1498,9 @@ app.get('/config', async (req, res) => {
 });
 
 
-app.post('/config', async (req, res) => {
+app.post('/config', requerirAdmin, async (req, res) => {
 
     const {
-        gym_id,
         monto_2dias,
         monto_3dias,
         monto_4dias,
@@ -1365,8 +1508,7 @@ app.post('/config', async (req, res) => {
         interes
     } = req.body;
 
-    const idGym =
-        gym_id || 'general';
+    const idGym = req.admin.gym_id;
 
     console.log(
         "DATOS RECIBIDOS EN CONFIG:",
@@ -1472,10 +1614,13 @@ app.post('/login', async (req, res) => {
         const result =
             await db.query(
                 `
-                SELECT username, gym_id
+                SELECT
+                    username,
+                    gym_id
                 FROM usuarios
                 WHERE username = $1
                 AND password_hash = $2
+                LIMIT 1
                 `,
                 [
                     user,
@@ -1485,15 +1630,27 @@ app.post('/login', async (req, res) => {
 
         if (result.rows.length > 0) {
 
+            const usuario =
+                result.rows[0];
+
+            const token =
+                generarTokenAdmin(
+                    usuario.username,
+                    usuario.gym_id
+                );
+
             res.status(200).json({
 
                 success: true,
 
                 gym_id:
-                    result.rows[0].gym_id,
+                    usuario.gym_id,
 
                 username:
-                    result.rows[0].username
+                    usuario.username,
+
+                token:
+                    token
 
             });
 
@@ -1519,8 +1676,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-
-app.post('/register', async (req, res) => {
+app.post('/register', requerirAdmin, async (req, res) => {
 
     try {
 
@@ -1544,7 +1700,7 @@ app.post('/register', async (req, res) => {
             [
                 user,
                 pass,
-                GIMNASIO_ACTUAL,
+                req.admin.gym_id,
                 email
             ]
         );
@@ -1566,7 +1722,6 @@ app.post('/register', async (req, res) => {
         });
     }
 });
-
 
 app.post('/solicitar-codigo', async (req, res) => {
 

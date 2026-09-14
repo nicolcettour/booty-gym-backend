@@ -10,10 +10,23 @@ window.GymApp.init = async function() {
 
     try {
         // Obtenemos el gym_id guardado tras el login
-        const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-        
-        // Conexión al servidor en Render para clientas
-        const response = await fetch(`https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}`);
+      const token = localStorage.getItem('admin_token');
+
+if (!token) {
+    throw new Error('Sesión administrativa no encontrada');
+}
+
+// Conexión al backend multisucursal de Booty Gym
+const response = await fetch(
+    'https://booty-gym-backend-1.onrender.com/clientas',
+    {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    }
+);
         
         if (response.ok) {
             const data = await response.json();
@@ -29,7 +42,7 @@ window.GymApp.init = async function() {
 
     // --- CARGAR CONFIGURACIÓN GLOBAL DESDE POSTGRESQL ---
     try {
-        const res = await fetch('https://booty-gym-backend.onrender.com/');
+        const res = await fetch('https://booty-gym-backend-1.onrender.com/');
         const text = await res.text();
         // Intentar parsear a JSON de forma segura
         const data = text.startsWith('{') ? JSON.parse(text) : { message: text };
@@ -112,26 +125,49 @@ window.GymApp.renderLogo = function() {
         </div>
     `;
 };
-
 // Mostrar el usuario al cargar la página
 window.addEventListener('load', () => {
-    const admin = localStorage.getItem('admin_user');
-    const gymId = localStorage.getItem('gym_id');
-    const userDisplay = document.getElementById('user-display');
-    const sidebar = document.getElementById('sidebar');
 
-    if (admin && gymId) {
+    const admin =
+        localStorage.getItem('admin_user');
+
+    const gymId =
+        localStorage.getItem('gym_id');
+
+    const token =
+        localStorage.getItem('admin_token');
+
+    const userDisplay =
+        document.getElementById('user-display');
+
+    const sidebar =
+        document.getElementById('sidebar');
+
+    if (admin && gymId && token) {
+
         window.GymApp.adminLogueado = true;
-        if (sidebar) sidebar.style.display = 'block';
+
+        if (sidebar) {
+            sidebar.style.display = 'block';
+        }
+
         if (userDisplay) {
-            userDisplay.innerText = "Admin: " + admin;
+            userDisplay.innerText =
+                "Admin: " + admin;
+        }
+
+    } else {
+
+        window.GymApp.adminLogueado = false;
+
+        if (sidebar) {
+            sidebar.style.display = 'none';
         }
     }
 });
-
 async function solicitarCodigoRecuperacion(username) {
     try {
-        const respuesta = await fetch('https://booty-gym-backend.onrender.com/solicitar-codigo', {
+        const respuesta = await fetch('https://booty-gym-backend-1.onrender.com/solicitar-codigo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username })
