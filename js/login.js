@@ -379,25 +379,39 @@ window.GymApp.login = {
 
             if (data.success) {
 
-                const nombreOficial =
-                    data.username ||
-                    data.user ||
-                    user;
+               const nombreOficial =
+    data.username ||
+    data.user ||
+    user;
 
-                localStorage.setItem(
-                    'gym_id',
-                    data.gym_id
-                );
+localStorage.setItem(
+    'gym_id',
+    data.gym_id
+);
 
-                localStorage.setItem(
-                    'admin_user',
-                    nombreOficial
-                );
+localStorage.setItem(
+    'admin_user',
+    nombreOficial
+);
 
-                localStorage.setItem(
-                    'admin_token',
-                    data.token
-                );
+localStorage.setItem(
+    'admin_token',
+    data.token
+);
+
+localStorage.setItem(
+    'gimnasios_autorizados',
+    JSON.stringify(
+        data.gimnasios || [data.gym_id]
+    )
+);
+
+localStorage.setItem(
+    'puede_cambiar_sucursal',
+    data.puede_cambiar_sucursal
+        ? 'true'
+        : 'false'
+);
 
                 /*
                  * IMPORTANTE:
@@ -405,35 +419,33 @@ window.GymApp.login = {
                  * para evitar que una sucursal vea datos guardados
                  * localmente de otra sucursal.
                  */
-                localStorage.removeItem(
-                    'listaClientas'
-                );
+              localStorage.removeItem(
+    'listaClientas'
+);
 
-                window.GymApp.adminLogueado =
-                    true;
+window.GymApp.adminLogueado =
+    true;
 
-                const sidebar =
-                    document.getElementById(
-                        'sidebar'
-                    );
+const sidebar =
+    document.getElementById(
+        'sidebar'
+    );
 
-                if (sidebar) {
+if (sidebar) {
+    sidebar.style.display =
+        'block';
+}
 
-                    sidebar.style.display =
-                        'block';
-                }
+const userDisplay =
+    document.getElementById(
+        'user-display'
+    );
 
-                const userDisplay =
-                    document.getElementById(
-                        'user-display'
-                    );
-
-                if (userDisplay) {
-
-                    userDisplay.innerText =
-                        "Admin: " +
-                        nombreOficial;
-                }
+if (userDisplay) {
+    userDisplay.innerText =
+        "Admin: " +
+        nombreOficial;
+}
 
                 /*
                  * Recargamos para que app.js vuelva a iniciar
@@ -462,39 +474,46 @@ window.GymApp.login = {
     },
 
 
-    logout: function() {
+logout: function() {
 
-        localStorage.removeItem(
-            'gym_id'
+    localStorage.removeItem(
+        'gym_id'
+    );
+
+    localStorage.removeItem(
+        'admin_user'
+    );
+
+    localStorage.removeItem(
+        'admin_token'
+    );
+
+    localStorage.removeItem(
+        'gimnasios_autorizados'
+    );
+
+    localStorage.removeItem(
+        'puede_cambiar_sucursal'
+    );
+
+    localStorage.removeItem(
+        'listaClientas'
+    );
+
+    window.GymApp.adminLogueado =
+        false;
+
+    const sidebar =
+        document.getElementById(
+            'sidebar'
         );
 
-        localStorage.removeItem(
-            'admin_user'
-        );
+    if (sidebar) {
 
-        localStorage.removeItem(
-            'admin_token'
-        );
-
-        localStorage.removeItem(
-            'listaClientas'
-        );
-
-        window.GymApp.adminLogueado =
-            false;
-
-        const sidebar =
-            document.getElementById(
-                'sidebar'
-            );
-
-        if (sidebar) {
-
-            sidebar.style.display =
-                'none';
-        }
-
-        window.location.reload();
+        sidebar.style.display =
+            'none';
     }
 
+    window.location.reload();
+}
 };

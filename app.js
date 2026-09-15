@@ -117,7 +117,212 @@ window.GymApp.cambiarVista = function(vista) {
             break;
     }
 };
+// ============================================================
+// SELECTOR DE SUCURSAL
+// ============================================================
 
+window.GymApp.inicializarSelectorSucursal = function() {
+
+    const puedeCambiar =
+        localStorage.getItem(
+            'puede_cambiar_sucursal'
+        ) === 'true';
+
+    const gymActual =
+        localStorage.getItem(
+            'gym_id'
+        );
+
+    let gimnasios = [];
+
+    try {
+
+        gimnasios =
+            JSON.parse(
+                localStorage.getItem(
+                    'gimnasios_autorizados'
+                )
+            ) || [];
+
+    } catch (error) {
+
+        console.error(
+            'Error leyendo gimnasios autorizados:',
+            error
+        );
+
+        gimnasios = [];
+    }
+
+    const container =
+        document.getElementById(
+            'selector-sucursal-container'
+        );
+
+    const selector =
+        document.getElementById(
+            'selector-sucursal'
+        );
+
+    if (!container || !selector) {
+        return;
+    }
+
+    if (
+        !puedeCambiar ||
+        gimnasios.length <= 1
+    ) {
+
+        container.style.display =
+            'none';
+
+        return;
+    }
+
+    selector.innerHTML = '';
+
+    gimnasios.forEach(gymId => {
+
+        const option =
+            document.createElement(
+                'option'
+            );
+
+        option.value =
+            gymId;
+
+        if (gymId === 'BOOTY_GYM_001') {
+
+            option.textContent =
+                'Sucursal 1';
+
+        } else if (
+            gymId === 'BOOTY_GYM_002'
+        ) {
+
+            option.textContent =
+                'Sucursal 2';
+
+        } else {
+
+            option.textContent =
+                gymId;
+        }
+
+        if (gymId === gymActual) {
+            option.selected = true;
+        }
+
+        selector.appendChild(
+            option
+        );
+    });
+
+    container.style.display =
+        'block';
+};
+
+
+window.GymApp.cambiarSucursal = async function(nuevoGymId) {
+
+    const gymActual =
+        localStorage.getItem(
+            'gym_id'
+        );
+
+    if (
+        !nuevoGymId ||
+        nuevoGymId === gymActual
+    ) {
+        return;
+    }
+
+    const token =
+        localStorage.getItem(
+            'admin_token'
+        );
+
+    if (!token) {
+
+        alert(
+            'La sesión administrativa no es válida.'
+        );
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                'https://booty-gym-backend-1.onrender.com/cambiar-sucursal',
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json',
+
+                        'Authorization':
+                            `Bearer ${token}`
+                    },
+
+                    body: JSON.stringify({
+                        gym_id:
+                            nuevoGymId
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok || !data.success) {
+
+            alert(
+                data.message ||
+                'No se pudo cambiar de sucursal.'
+            );
+
+            window.GymApp.inicializarSelectorSucursal();
+
+            return;
+        }
+
+        localStorage.setItem(
+            'gym_id',
+            data.gym_id
+        );
+
+        localStorage.setItem(
+            'admin_token',
+            data.token
+        );
+
+        /*
+         * Evitamos arrastrar clientas de la
+         * sucursal anterior desde localStorage.
+         */
+        localStorage.removeItem(
+            'listaClientas'
+        );
+
+        window.location.reload();
+
+    } catch (error) {
+
+        console.error(
+            'Error al cambiar de sucursal:',
+            error
+        );
+
+        alert(
+            'No se pudo conectar con el servidor.'
+        );
+
+        window.GymApp.inicializarSelectorSucursal();
+    }
+};
 window.GymApp.renderLogo = function() {
     return `
         <div style="text-align: center; margin-bottom: 20px;">
@@ -145,25 +350,27 @@ window.addEventListener('load', () => {
 
     if (admin && gymId && token) {
 
-        window.GymApp.adminLogueado = true;
+    window.GymApp.adminLogueado = true;
 
-        if (sidebar) {
-            sidebar.style.display = 'block';
-        }
-
-        if (userDisplay) {
-            userDisplay.innerText =
-                "Admin: " + admin;
-        }
-
-    } else {
-
-        window.GymApp.adminLogueado = false;
-
-        if (sidebar) {
-            sidebar.style.display = 'none';
-        }
+    if (sidebar) {
+        sidebar.style.display = 'block';
     }
+
+    if (userDisplay) {
+        userDisplay.innerText =
+            "Admin: " + admin;
+    }
+
+    window.GymApp.inicializarSelectorSucursal();
+
+} else {
+
+    window.GymApp.adminLogueado = false;
+
+    if (sidebar) {
+        sidebar.style.display = 'none';
+    }
+}
 });
 async function solicitarCodigoRecuperacion(username) {
     try {

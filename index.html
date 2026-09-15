@@ -16,10 +16,49 @@
                 <li onclick="window.GymApp.cambiarVista('PAGOS')">CONTROL DE PAGOS</li>
                 <li onclick="window.GymApp.cambiarVista('BOOTY')">BOOTY CLUB</li>
                 
-                <li id="user-display" style="margin: 15px 0; color: #ff9a8b; text-align: center; font-weight: bold; font-size: 0.9em; list-style: none; cursor: default;"></li>
-                
-                <li onclick="window.GymApp.login.logout()" style="margin-top: 5px; color: #ff9a8b; border: 1px solid #ff9a8b; border-radius: 5px; cursor: pointer; text-align: center; padding: 5px;">CERRAR SESIÓN</li>
-            </ul>
+               <li id="user-display" style="margin: 15px 0; color: #ff9a8b; text-align: center; font-weight: bold; font-size: 0.9em; list-style: none; cursor: default;"></li>
+
+<li
+    id="selector-sucursal-container"
+    style="
+        display: none;
+        list-style: none;
+        margin: 10px 0 15px 0;
+        padding: 10px;
+        border: 1px solid #333;
+        border-radius: 8px;
+        background: rgba(20,20,20,0.8);
+        text-align: center;
+    "
+>
+    <div
+        style="
+            color: #ff9a8b;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        "
+    >
+        SUCURSAL ACTIVA
+    </div>
+
+    <select
+        id="selector-sucursal"
+        onchange="window.GymApp.cambiarSucursal(this.value)"
+        style="
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+            cursor: pointer;
+        "
+    >
+    </select>
+</li>
+
+<li onclick="window.GymApp.login.logout()" style="margin-top: 5px; color: #ff9a8b; border: 1px solid #ff9a8b; border-radius: 5px; cursor: pointer; text-align: center; padding: 5px;">CERRAR SESIÓN</li>
         </nav>
     </div>
     <main id="app">

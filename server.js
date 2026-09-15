@@ -1601,7 +1601,6 @@ app.post('/config', requerirAdmin, async (req, res) => {
 // ============================================================
 // RUTAS DE USUARIO ADMINISTRATIVO
 // ============================================================
-
 app.post('/login', async (req, res) => {
 
     try {
@@ -1611,10 +1610,15 @@ app.post('/login', async (req, res) => {
             pass
         } = req.body;
 
+        // ----------------------------------------------------
+        // VALIDAR USUARIO Y CONTRASEÑA
+        // ----------------------------------------------------
+
         const result =
             await db.query(
                 `
                 SELECT
+                    id,
                     username,
                     gym_id
                 FROM usuarios
@@ -1628,40 +1632,131 @@ app.post('/login', async (req, res) => {
                 ]
             );
 
-        if (result.rows.length > 0) {
+        if (result.rows.length === 0) {
 
-            const usuario =
-                result.rows[0];
-
-            const token =
-                generarTokenAdmin(
-                    usuario.username,
-                    usuario.gym_id
-                );
-
-            res.status(200).json({
-
-                success: true,
-
-                gym_id:
-                    usuario.gym_id,
-
-                username:
-                    usuario.username,
-
-                token:
-                    token
-
-            });
-
-        } else {
-
-            res.status(401).json({
+            return res.status(401).json({
                 success: false,
                 message:
                     'Usuario o contraseña incorrectos'
             });
         }
+
+        const usuario =
+            result.rows[0];
+
+
+        // ----------------------------------------------------
+        // OBTENER GIMNASIOS AUTORIZADOS PARA ESTE USUARIO
+        // ----------------------------------------------------
+
+        const gimnasiosResult =
+            await db.query(
+                `
+                SELECT gym_id
+                FROM usuario_gimnasios
+                WHERE usuario_id = $1
+                ORDER BY gym_id
+                `,
+                [
+                    usuario.id
+                ]
+            );
+
+
+        let gimnasiosAutorizados =
+            gimnasiosResult.rows.map(
+                fila => fila.gym_id
+            );
+
+
+        // ----------------------------------------------------
+        // COMPATIBILIDAD CON USUARIOS EXISTENTES
+        // ----------------------------------------------------
+        // Los usuarios normales que todavía no estén
+        // cargados en usuario_gimnasios siguen funcionando
+        // con el gym_id que ya tenían asignado.
+        // ----------------------------------------------------
+
+        if (
+            gimnasiosAutorizados.length === 0 &&
+            usuario.gym_id
+        ) {
+
+            gimnasiosAutorizados = [
+                usuario.gym_id
+            ];
+        }
+
+
+        if (gimnasiosAutorizados.length === 0) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    'El usuario no tiene ninguna sucursal autorizada'
+            });
+        }
+
+
+        // ----------------------------------------------------
+        // DEFINIR SUCURSAL INICIAL
+        // ----------------------------------------------------
+        // Si el gym_id original del usuario está dentro de sus
+        // permisos, entramos inicialmente allí.
+        // De lo contrario usamos la primera sucursal permitida.
+        // ----------------------------------------------------
+
+        let gymActivo =
+            usuario.gym_id;
+
+        if (
+            !gymActivo ||
+            !gimnasiosAutorizados.includes(
+                gymActivo
+            )
+        ) {
+
+            gymActivo =
+                gimnasiosAutorizados[0];
+        }
+
+
+        // ----------------------------------------------------
+        // GENERAR TOKEN PARA LA SUCURSAL ACTIVA
+        // ----------------------------------------------------
+
+        const token =
+            generarTokenAdmin(
+                usuario.username,
+                gymActivo
+            );
+
+
+        // ----------------------------------------------------
+        // RESPUESTA AL FRONTEND
+        // ----------------------------------------------------
+
+        return res.status(200).json({
+
+            success: true,
+
+            username:
+                usuario.username,
+
+            gym_id:
+                gymActivo,
+
+            gimnasios:
+                gimnasiosAutorizados,
+
+            puede_cambiar_sucursal:
+                gimnasiosAutorizados.length > 1,
+
+            token:
+                token
+
+        });
+
 
     } catch (err) {
 
@@ -1670,12 +1765,108 @@ app.post('/login', async (req, res) => {
             err
         );
 
-        res.status(500).send(
-            'Error en el servidor'
-        );
+        return res.status(500).json({
+            success: false,
+            message:
+                'Error en el servidor'
+        });
     }
 });
+app.post('/cambiar-sucursal', requerirAdmin, async (req, res) => {
 
+    try {
+
+        const {
+            gym_id
+        } = req.body;
+
+        if (!gym_id) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Debes indicar una sucursal'
+            });
+        }
+
+        const usuarioResult =
+            await db.query(
+                `
+                SELECT id
+                FROM usuarios
+                WHERE username = $1
+                LIMIT 1
+                `,
+                [
+                    req.admin.username
+                ]
+            );
+
+        if (usuarioResult.rows.length === 0) {
+
+            return res.status(401).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        const usuarioId =
+            usuarioResult.rows[0].id;
+
+        const permisoResult =
+            await db.query(
+                `
+                SELECT 1
+                FROM usuario_gimnasios
+                WHERE usuario_id = $1
+                AND gym_id = $2
+                LIMIT 1
+                `,
+                [
+                    usuarioId,
+                    gym_id
+                ]
+            );
+
+        if (permisoResult.rows.length === 0) {
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    'No tienes permiso para acceder a esta sucursal'
+            });
+        }
+
+        const nuevoToken =
+            generarTokenAdmin(
+                req.admin.username,
+                gym_id
+            );
+
+        return res.status(200).json({
+
+            success: true,
+
+            gym_id,
+
+            token:
+                nuevoToken
+
+        });
+
+    } catch (err) {
+
+        console.error(
+            'Error al cambiar de sucursal:',
+            err
+        );
+
+        return res.status(500).json({
+            success: false,
+            message:
+                'Error al cambiar de sucursal'
+        });
+    }
+});
 app.post('/register', requerirAdmin, async (req, res) => {
 
     try {
