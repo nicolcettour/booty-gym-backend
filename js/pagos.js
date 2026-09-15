@@ -1,6 +1,20 @@
 window.GymApp = window.GymApp || {};
 
 window.GymApp.pagos = {
+
+    apiBase: 'https://booty-gym-backend-1.onrender.com',
+
+    obtenerTokenAdmin: function() {
+        return localStorage.getItem('admin_token');
+    },
+
+    headersAdmin: function() {
+        const token = this.obtenerTokenAdmin();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+        };
+    },
     renderizarInterfaz: function() {
         const main = document.getElementById('app');
         if (!main) return;
@@ -28,9 +42,10 @@ window.GymApp.pagos = {
                 </div>
 
                 ${esAdminPrincipal ? `
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                    <button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Ver Historial de Pagos</button>
-                    <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">Configuración</button>
+                <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:15px; flex-wrap:wrap;">
+                    <button onclick="window.GymApp.pagos.verHistorial()" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold; flex:1; min-width:150px;">Ver Historial de Pagos</button>
+                    <button onclick="window.GymApp.pagos.verDeudas()" style="background:#333; color:#ff4757; border:1px solid #ff4757; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold; flex:1; min-width:110px;">💳 Deudas</button>
+                    <button onclick="window.GymApp.cambiarVista('CONFIG')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold; flex:1; min-width:120px;">Configuración</button>
                 </div>` : ''}
 
                 <div id="resumen-financiero" style="margin-bottom: 15px;"></div>
@@ -77,8 +92,8 @@ window.GymApp.pagos = {
             const usuarioActual = localStorage.getItem('admin_user') || 'default';
             const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_global`;
             
-            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
-            const res = await fetch(url);
+            const url = `${this.apiBase}/pagos`;
+            const res = await fetch(url, { headers: this.headersAdmin() });
             if (!res.ok) {
                 contenido.style.display = 'block';
                 contenido.innerHTML = '<p style="color:#ff4757; text-align:center; margin:5px 0;">Error al cargar movimientos.</p>';
@@ -180,18 +195,18 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-            const urlClientas = gymId ? `https://booty-gym-backend.onrender.com/clientas?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/clientas`;
-            const resClientas = await fetch(urlClientas);
+            const urlClientas = `${this.apiBase}/clientas`;
+            const resClientas = await fetch(urlClientas, { headers: this.headersAdmin() });
             if (resClientas.ok) {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
-            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
-            const resPagos = await fetch(urlPagos);
+            const urlPagos = `${this.apiBase}/pagos`;
+            const resPagos = await fetch(urlPagos, { headers: this.headersAdmin() });
             window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
 
-            const urlConfig = gymId ? `https://booty-gym-backend.onrender.com/config?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/config`;
-            const resConfig = await fetch(urlConfig);
+            const urlConfig = `${this.apiBase}/config`;
+            const resConfig = await fetch(urlConfig, { headers: this.headersAdmin() });
             if (resConfig.ok) {
                 const dataConfig = await resConfig.json();
                 console.log("Datos de config recibidos del backend:", dataConfig);
@@ -230,12 +245,21 @@ window.GymApp.pagos = {
 
         ul.innerHTML = clientas.map((c, i) => {
             const pagoEncontrado = pagosRegistrados.find(p => {
-                if (p.clienta_id !== c.id) return false;
+                if (Number(p.clienta_id) !== Number(c.id)) return false;
+
+                // El mes/anio guardado representa la cuota que se está abonando.
+                // Esto es fundamental para poder registrar deudas de meses anteriores
+                // sin marcarlas por error como la cuota del mes actual.
+                if (p.mes != null && p.anio != null) {
+                    return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
+                }
+
                 if (p.fecha_pago) {
                     const fechaP = new Date(p.fecha_pago);
                     return (fechaP.getMonth() + 1) === mesActual && fechaP.getFullYear() === anioActual;
                 }
-                return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
+
+                return false;
             });
 
             let montoBaseClienta = this.obtenerMontoBasePorClienta(c, configPagos);
@@ -305,17 +329,18 @@ window.GymApp.pagos = {
 
         try {
             const cuerpoPeticion = {
-                gym_id: gymId,
                 clienta_id: clienta.id,
                 monto: monto,
+                mes: new Date().getMonth() + 1,
+                anio: new Date().getFullYear(),
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual
             };
 
-            const response = `https://booty-gym-backend.onrender.com/pagos`;
+            const response = `${this.apiBase}/pagos`;
             const res = await fetch(response, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: this.headersAdmin(),
                 body: JSON.stringify(cuerpoPeticion)
             });
 
@@ -348,15 +373,302 @@ window.GymApp.pagos = {
         }
     },
 
+    obtenerPeriodoPago: function(pago) {
+        if (pago && pago.mes != null && pago.anio != null) {
+            return {
+                mes: Number(pago.mes),
+                anio: Number(pago.anio)
+            };
+        }
+
+        const fecha = pago && (pago.fecha_pago || pago.created_at);
+        if (!fecha) return null;
+
+        const f = new Date(fecha);
+        if (Number.isNaN(f.getTime())) return null;
+
+        return {
+            mes: f.getMonth() + 1,
+            anio: f.getFullYear()
+        };
+    },
+
+    obtenerPrimerPeriodoDeuda: function(clienta, pagosClienta, hoy) {
+        // Si la base ya posee fecha de alta/creación, esa es la referencia más segura.
+        const fechaAltaBruta = clienta.fecha_alta || clienta.created_at || clienta.fecha_registro || clienta.fecha_ingreso;
+        if (fechaAltaBruta) {
+            const fechaAlta = new Date(fechaAltaBruta);
+            if (!Number.isNaN(fechaAlta.getTime())) {
+                return {
+                    mes: fechaAlta.getMonth() + 1,
+                    anio: fechaAlta.getFullYear()
+                };
+            }
+        }
+
+        // Para clientas antiguas sin fecha de alta, usamos el primer período de pago
+        // conocido. Así evitamos inventar deudas anteriores a la información real del sistema.
+        const periodos = pagosClienta
+            .map(p => this.obtenerPeriodoPago(p))
+            .filter(Boolean)
+            .sort((a, b) => (a.anio * 12 + a.mes) - (b.anio * 12 + b.mes));
+
+        if (periodos.length > 0) return periodos[0];
+
+        // Si nunca tuvo un pago registrado y no existe fecha de alta,
+        // empezamos en el mes actual para no generar deuda histórica ficticia.
+        return {
+            mes: hoy.getMonth() + 1,
+            anio: hoy.getFullYear()
+        };
+    },
+
+    calcularDeudas: function(clientas, pagosRegistrados, configPagos) {
+        const hoy = new Date();
+        const mesActual = hoy.getMonth() + 1;
+        const anioActual = hoy.getFullYear();
+        const diaActual = hoy.getDate();
+        const interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
+        const deudas = [];
+
+        clientas.forEach(clienta => {
+            const pagosClienta = pagosRegistrados.filter(p => Number(p.clienta_id) === Number(clienta.id));
+            const pagados = new Set();
+
+            pagosClienta.forEach(p => {
+                const periodo = this.obtenerPeriodoPago(p);
+                if (periodo) pagados.add(`${periodo.anio}-${periodo.mes}`);
+            });
+
+            const inicio = this.obtenerPrimerPeriodoDeuda(clienta, pagosClienta, hoy);
+            let cursorAnio = inicio.anio;
+            let cursorMes = inicio.mes;
+            let guard = 0;
+
+            while ((cursorAnio < anioActual || (cursorAnio === anioActual && cursorMes <= mesActual)) && guard < 240) {
+                const clave = `${cursorAnio}-${cursorMes}`;
+
+                if (!pagados.has(clave)) {
+                    const montoBase = this.obtenerMontoBasePorClienta(clienta, configPagos);
+                    const esMesActual = cursorAnio === anioActual && cursorMes === mesActual;
+                    // Conservamos la regla que ya usa Booty Gym: luego del día 10 se aplica interés.
+                    const aplicaInteres = !esMesActual || diaActual > 10;
+                    const monto = aplicaInteres
+                        ? montoBase + (montoBase * interesDecimal)
+                        : montoBase;
+
+                    deudas.push({
+                        clienta,
+                        mes: cursorMes,
+                        anio: cursorAnio,
+                        monto: Math.round(monto),
+                        montoBase: Math.round(montoBase),
+                        frecuencia: this.obtenerFrecuenciaSemanal(clienta)
+                    });
+                }
+
+                cursorMes += 1;
+                if (cursorMes > 12) {
+                    cursorMes = 1;
+                    cursorAnio += 1;
+                }
+                guard += 1;
+            }
+        });
+
+        return deudas.sort((a, b) => {
+            const periodoA = a.anio * 12 + a.mes;
+            const periodoB = b.anio * 12 + b.mes;
+            if (periodoA !== periodoB) return periodoA - periodoB;
+            return `${a.clienta.nombre} ${a.clienta.apellido}`.localeCompare(`${b.clienta.nombre} ${b.clienta.apellido}`, 'es');
+        });
+    },
+
+    verDeudas: async function() {
+        const usuarioActual = localStorage.getItem('admin_user');
+        if (usuarioActual !== 'Priscila.admin') return;
+
+        const main = document.getElementById('app');
+        if (!main) return;
+
+        main.innerHTML = `
+            ${window.GymApp.renderLogo()}
+            <div style="max-width:760px; margin:0 auto; background:rgba(20,20,20,0.85); padding:20px; border-radius:15px; border:1px solid #333; color:white;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px;">
+                    <button onclick="window.GymApp.cambiarVista('PAGOS')" style="background:#333; color:#ff9a8b; border:1px solid #ff9a8b; padding:8px 15px; border-radius:8px; cursor:pointer;">← Volver</button>
+                    <h2 style="color:#ff4757; margin:0; text-align:center; flex:1;">DEUDAS</h2>
+                </div>
+                <div id="deudas-resumen" style="margin-bottom:15px;"></div>
+                <input type="text" id="buscador-deudas" placeholder="🔍 Buscar clienta..." oninput="window.GymApp.pagos.filtrarDeudas()" style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid #444; background:rgba(255,255,255,0.07); color:white; font-size:0.95em; outline:none; box-sizing:border-box; margin-bottom:15px;">
+                <div id="lista-deudas"><p style="text-align:center; color:#aaa;">Calculando deudas...</p></div>
+            </div>
+        `;
+
+        try {
+            const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
+            const [resClientas, resPagos, resConfig] = await Promise.all([
+                fetch(`${this.apiBase}/clientas`, { headers: this.headersAdmin() }),
+                fetch(`${this.apiBase}/pagos`, { headers: this.headersAdmin() }),
+                fetch(`${this.apiBase}/config`, { headers: this.headersAdmin() })
+            ]);
+
+            if (!resClientas.ok || !resPagos.ok || !resConfig.ok) {
+                throw new Error('No fue posible obtener toda la información de pagos.');
+            }
+
+            const clientas = await resClientas.json();
+            const pagos = await resPagos.json();
+            const dataConfig = await resConfig.json();
+            const cuotaGeneral = Number(dataConfig.monto_cuota || 0);
+            const configPagos = {
+                monto2dias: Number(dataConfig.monto_2dias) || cuotaGeneral || 0,
+                monto3dias: Number(dataConfig.monto_3dias) || cuotaGeneral || 0,
+                monto4dias: Number(dataConfig.monto_4dias) || cuotaGeneral || 0,
+                monto5dias: Number(dataConfig.monto_5dias) || cuotaGeneral || 0,
+                interesPorcentaje: Number(dataConfig.interes || dataConfig.interesPorcentaje || 0)
+            };
+
+            window.GymApp.deudasCalculadas = this.calcularDeudas(clientas, pagos, configPagos);
+            this.renderizarDeudas();
+        } catch (e) {
+            console.error('Error al calcular deudas:', e);
+            const lista = document.getElementById('lista-deudas');
+            if (lista) lista.innerHTML = '<p style="color:#ff4757; text-align:center;">No se pudieron cargar las deudas.</p>';
+        }
+    },
+
+    renderizarDeudas: function() {
+        const lista = document.getElementById('lista-deudas');
+        const resumen = document.getElementById('deudas-resumen');
+        if (!lista) return;
+
+        const deudas = window.GymApp.deudasCalculadas || [];
+        const nombresMeses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const total = deudas.reduce((acc, d) => acc + Number(d.monto || 0), 0);
+        const clientasConDeuda = new Set(deudas.map(d => d.clienta.id)).size;
+
+        if (resumen) {
+            resumen.innerHTML = `
+                <div style="display:flex; justify-content:space-around; gap:10px; flex-wrap:wrap; background:rgba(255,71,87,0.08); border:1px solid rgba(255,71,87,0.4); padding:12px; border-radius:10px;">
+                    <span><strong>Clientas con deuda:</strong> ${clientasConDeuda}</span>
+                    <span><strong>Cuotas pendientes:</strong> ${deudas.length}</span>
+                    <span><strong>Total adeudado:</strong> <span style="color:#ff4757;">$${Math.round(total)}</span></span>
+                </div>`;
+        }
+
+        if (deudas.length === 0) {
+            lista.innerHTML = '<p style="color:#4caf50; text-align:center; padding:20px;">✅ No hay cuotas pendientes registradas.</p>';
+            return;
+        }
+
+        const agrupadas = {};
+        deudas.forEach(d => {
+            const id = d.clienta.id;
+            if (!agrupadas[id]) {
+                agrupadas[id] = {
+                    clienta: d.clienta,
+                    frecuencia: d.frecuencia,
+                    items: []
+                };
+            }
+            agrupadas[id].items.push(d);
+        });
+
+        lista.innerHTML = Object.values(agrupadas).map(grupo => {
+            const nombre = `${grupo.clienta.nombre} ${grupo.clienta.apellido}`;
+            const totalClienta = grupo.items.reduce((acc, d) => acc + Number(d.monto || 0), 0);
+            const detalle = grupo.items.map(d => `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-top:1px solid rgba(255,255,255,0.08);">
+                    <span style="flex:1;">${nombresMeses[d.mes - 1]} ${d.anio}</span>
+                    <strong style="color:#ff4757;">$${d.monto}</strong>
+                    <button onclick="window.GymApp.pagos.registrarDeuda(${grupo.clienta.id}, ${d.mes}, ${d.anio}, ${d.monto}, this)" style="background:#ff9a8b; color:black; border:none; padding:6px 12px; border-radius:14px; font-weight:bold; cursor:pointer;">Registrar pago</button>
+                </div>
+            `).join('');
+
+            return `
+                <div class="deuda-clienta" data-nombre="${nombre.toLowerCase()}" style="background:#222; border:1px solid #444; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+                        <div><strong>${nombre}</strong> <span style="color:#aaa; font-size:0.9em;">(${grupo.frecuencia} días)</span></div>
+                        <div style="text-align:right;"><span style="color:#aaa; font-size:0.85em;">${grupo.items.length} cuota${grupo.items.length === 1 ? '' : 's'}</span><br><strong style="color:#ff4757;">$${Math.round(totalClienta)}</strong></div>
+                    </div>
+                    ${detalle}
+                </div>`;
+        }).join('');
+    },
+
+    filtrarDeudas: function() {
+        const input = document.getElementById('buscador-deudas');
+        if (!input) return;
+        const filtro = input.value.toLowerCase().trim();
+        document.querySelectorAll('.deuda-clienta').forEach(item => {
+            const nombre = item.getAttribute('data-nombre') || '';
+            item.style.display = nombre.includes(filtro) ? '' : 'none';
+        });
+    },
+
+    registrarDeuda: async function(clientaId, mes, anio, monto, botonElement) {
+        const deudas = window.GymApp.deudasCalculadas || [];
+        const deuda = deudas.find(d => Number(d.clienta.id) === Number(clientaId) && Number(d.mes) === Number(mes) && Number(d.anio) === Number(anio));
+        if (!deuda) {
+            alert('No se encontró la deuda seleccionada. Actualizá la pantalla e intentá nuevamente.');
+            return;
+        }
+
+        if (!confirm(`¿Registrar el pago de ${deuda.clienta.nombre} ${deuda.clienta.apellido} correspondiente a ${mes}/${anio} por $${monto}?`)) {
+            return;
+        }
+
+        const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
+        const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
+
+        if (botonElement) {
+            botonElement.disabled = true;
+            botonElement.textContent = 'Registrando...';
+            botonElement.style.opacity = '0.5';
+        }
+
+        try {
+            const res = await fetch(`${this.apiBase}/pagos`, {
+                method: 'POST',
+                headers: this.headersAdmin(),
+                body: JSON.stringify({
+                    clienta_id: deuda.clienta.id,
+                    monto: Number(monto),
+                    mes: Number(mes),
+                    anio: Number(anio),
+                    nombre_completo: `${deuda.clienta.nombre} ${deuda.clienta.apellido}`,
+                    usuario_registro: usuarioActual,
+                    fecha_pago: new Date().toISOString()
+                })
+            });
+
+            if (!res.ok) {
+                const texto = await res.text();
+                throw new Error(texto || 'Error al registrar el pago');
+            }
+
+            alert('Pago de deuda registrado exitosamente.');
+            await this.verDeudas();
+        } catch (e) {
+            console.error('Error al registrar deuda:', e);
+            alert('No se pudo registrar el pago de la deuda.');
+            if (botonElement) {
+                botonElement.disabled = false;
+                botonElement.textContent = 'Registrar pago';
+                botonElement.style.opacity = '1';
+            }
+        }
+    },
+
     realizarCierreCaja: async function() {
         try {
             const gymId = localStorage.getItem('gym_id');
             let usuarioActual = localStorage.getItem('admin_user') || 'Administrador';
             const claveCierre = `caja_cerrada_ts_${gymId || 'general'}_global`;
             
-            const url = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
+            const url = `${this.apiBase}/pagos`;
             
-            const res = await fetch(url);
+            const res = await fetch(url, { headers: this.headersAdmin() });
             if (!res.ok) {
                 alert("No se pudieron obtener los datos para el cierre de caja.");
                 return;
@@ -481,8 +793,8 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id');
-            const urlHistorial = gymId ? `https://booty-gym-backend.onrender.com/pagos/agrupados?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos/agrupados`;
-            const response = await fetch(urlHistorial);
+            const urlHistorial = `${this.apiBase}/pagos/agrupados`;
+            const response = await fetch(urlHistorial, { headers: this.headersAdmin() });
             const data = await response.json();
             window.GymApp.tempData = data;
 
@@ -573,7 +885,6 @@ window.GymApp.pagos = {
         const inputInteres = document.getElementById('in-interes');
 
         const datosConfig = {
-            gym_id: gymId,
             monto_2dias: input2 ? (Number(input2.value) || 0) : 0,
             monto_3dias: input3 ? (Number(input3.value) || 0) : 0,
             monto_4dias: input4 ? (Number(input4.value) || 0) : 0,
@@ -584,9 +895,9 @@ window.GymApp.pagos = {
         console.log("Enviando configuración:", datosConfig);
 
         try {
-            const response = await fetch(`https://booty-gym-backend.onrender.com/config?gym_id=${gymId}`, {
+            const response = await fetch(`${this.apiBase}/config`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.headersAdmin(),
                 body: JSON.stringify(datosConfig)
             });
             

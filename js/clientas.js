@@ -2,6 +2,20 @@ window.GymApp = window.GymApp || {};
 
 window.GymApp.clientas = {
 
+    apiBase: 'https://booty-gym-backend-1.onrender.com',
+
+    obtenerTokenAdmin: function() {
+        return localStorage.getItem('admin_token');
+    },
+
+    headersAdmin: function() {
+        const token = this.obtenerTokenAdmin();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+        };
+    },
+
     // Función auxiliar para asegurar que la altura se guarde/muestre con coma (ej: 1,65)
     formatearAltura: function(valor) {
         if (!valor) return '';
@@ -19,7 +33,11 @@ window.GymApp.clientas = {
     // Nueva función para traer los datos reales de Postgres al iniciar
     cargarDesdeServidor: async function() {
         try {
-            const res = await fetch('https://booty-gym-backend.onrender.com/clientas');
+            const res = await fetch(`${this.apiBase}/clientas`, {
+                method: 'GET',
+                headers: this.headersAdmin()
+            });
+            if (!res.ok) throw new Error(`Error ${res.status} al cargar clientas`);
             const data = await res.json();
 
             window.GymApp.config.clientas = data;
@@ -48,6 +66,10 @@ window.GymApp.clientas = {
                     style="width: 100%; padding: 12px; background: #ff6b8e; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
                     + Agregar Nueva Clienta
                 </button>
+
+                <div id="contador-clientas" style="margin-bottom: 12px; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; text-align: center; font-weight: bold;">
+                    👥 Total de clientas: <span style="color:#ff9a8b;">${listaClientas.length}</span>
+                </div>
 
                 <input type="text" id="buscador-clientas" placeholder="🔍 Buscar clienta..." 
                     oninput="window.GymApp.clientas.filtrar()"
@@ -314,11 +336,11 @@ guardar: async function() {
         };
 
         try {
-    let url = 'https://booty-gym-backend.onrender.com/clientas';
+    let url = `${this.apiBase}/clientas`;
     let method = 'POST';
 
     if (index !== "" && clientId) {
-        url = `https://booty-gym-backend.onrender.com/clientas/${clientId}`;
+        url = `${this.apiBase}/clientas/${clientId}`;
         method = 'PUT';
     }
 
@@ -328,9 +350,7 @@ guardar: async function() {
             // 2. Hacemos el fetch
             const response = await fetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: this.headersAdmin(),
                 body: JSON.stringify(nuevaClienta)
             });
 
@@ -353,13 +373,24 @@ guardar: async function() {
             .value
             .toLowerCase();
 
-        document.querySelectorAll('.item-clienta').forEach(item => {
-            item.style.display = item.textContent
+        let visibles = 0;
+        const items = document.querySelectorAll('.item-clienta');
+
+        items.forEach(item => {
+            const coincide = item.textContent
                 .toLowerCase()
-                .includes(busqueda)
-                ? ""
-                : "none";
+                .includes(busqueda);
+
+            item.style.display = coincide ? "" : "none";
+            if (coincide) visibles++;
         });
+
+        const contador = document.getElementById('contador-clientas');
+        if (contador) {
+            contador.innerHTML = busqueda
+                ? `👥 Mostrando: <span style="color:#ff9a8b;">${visibles}</span> de ${items.length} clientas`
+                : `👥 Total de clientas: <span style="color:#ff9a8b;">${items.length}</span>`;
+        }
     },
 
     verDetalle: function(i) {
@@ -393,9 +424,10 @@ guardar: async function() {
 
             try {
                 const response = await fetch(
-                    `https://booty-gym-backend.onrender.com/clientas/${clientaAEliminar.id}`,
+                    `${this.apiBase}/clientas/${clientaAEliminar.id}`,
                     {
-                        method: 'DELETE'
+                        method: 'DELETE',
+                        headers: this.headersAdmin()
                     }
                 );
 

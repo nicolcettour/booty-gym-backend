@@ -97,10 +97,15 @@ window.GymApp.bootyclub = {
         if (!contenedor) return;
 
         try {
-            const gymId = localStorage.getItem('gym_id');
-            const urlPagos = gymId ? `https://booty-gym-backend.onrender.com/pagos?gym_id=${gymId}` : `https://booty-gym-backend.onrender.com/pagos`;
+            const token = localStorage.getItem('admin_token');
+            const urlPagos = 'https://booty-gym-backend-1.onrender.com/pagos';
             
-            const res = await fetch(urlPagos);
+            const res = await fetch(urlPagos, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token || ''}`
+                }
+            });
             if (!res.ok) throw new Error("Error al obtener pagos");
             const todosLosPagos = await res.json();
             

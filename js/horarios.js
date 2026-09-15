@@ -12,12 +12,19 @@ window.GymApp.horarios = {
         if (!contenedor) return;
 
         const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-        contenedor.innerHTML = dias.map(d => `
-            <button onclick="window.GymApp.horarios.seleccionarDia('${d}')" 
-            style="margin:5px; padding:10px 15px; border-radius: 10px; border: 1px solid #ff9a8b; background: rgba(30,30,30,0.8); color: #fff; font-weight: bold; cursor: pointer;">
-                ${d}
-            </button>
-        `).join('');
+        const clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
+
+        contenedor.innerHTML = dias.map(d => {
+            const cantidadDia = clientas.filter(c => c.dias && c.dias.includes(d)).length;
+
+            return `
+                <button onclick="window.GymApp.horarios.seleccionarDia('${d}')" 
+                style="margin:5px; padding:10px 15px; border-radius: 10px; border: 1px solid #ff9a8b; background: rgba(30,30,30,0.8); color: #fff; font-weight: bold; cursor: pointer;">
+                    ${d}
+                    <span style="display:inline-block; margin-left:6px; padding:2px 7px; border-radius:10px; background:#ff9a8b; color:#111; font-size:0.8rem;">${cantidadDia}</span>
+                </button>
+            `;
+        }).join('');
     },
 
     seleccionarDia: function(dia) {
@@ -28,15 +35,24 @@ window.GymApp.horarios = {
         }
 
         const horarios = this.horariosDefault;
+        const clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
+        const clientasDia = clientas.filter(c => c.dias && c.dias.includes(dia));
         
         contenedor.innerHTML = `
             <h3 style="color: #ff9a8b; margin-top: 10px; text-align: center;">${dia} - Selecciona un Horario</h3>
-            ${horarios.map(h => `
-                <button onclick="window.GymApp.horarios.mostrarClientas('${h}', '${dia}')" 
-                style="display:block; margin:10px auto; width:80%; padding:10px; border-radius: 10px; border: none; background: #333; color: #ff9a8b; font-weight: bold; cursor: pointer;">
-                    ${h}
-                </button>
-            `).join('')}
+            <div style="max-width:80%; margin:0 auto 15px; padding:10px; border:1px solid #333; border-radius:8px; background:#1a1a1a; color:#fff; text-align:center; font-weight:bold;">
+                👥 Total del día: <span style="color:#ff9a8b;">${clientasDia.length}</span> clientas
+            </div>
+            ${horarios.map(h => {
+                const cantidadTurno = clientasDia.filter(c => c.horario === h).length;
+                return `
+                    <button onclick="window.GymApp.horarios.mostrarClientas('${h}', '${dia}')" 
+                    style="display:block; margin:10px auto; width:80%; padding:10px; border-radius: 10px; border: none; background: #333; color: #ff9a8b; font-weight: bold; cursor: pointer;">
+                        ${h}
+                        <span style="float:right; min-width:24px; padding:2px 7px; border-radius:10px; background:#ff9a8b; color:#111; font-size:0.8rem;">${cantidadTurno}</span>
+                    </button>
+                `;
+            }).join('')}
         `;
     },
 
@@ -49,6 +65,9 @@ window.GymApp.horarios = {
 
         contenedor.innerHTML = `
             <h3 style="color: #ff9a8b; text-align: center;">${dia} - ${horario}</h3>
+            <div style="max-width:80%; margin:0 auto 15px; padding:10px; border:1px solid #333; border-radius:8px; background:#1a1a1a; color:#fff; text-align:center; font-weight:bold;">
+                👥 Clientas en este turno: <span style="color:#ff9a8b;">${filtradas.length}</span>
+            </div>
             ${filtradas.length > 0 
                 ? `<ul style="list-style:none; padding:0; text-align:center;">${filtradas.map(c => `
                     <li style="color: #fff; padding: 10px; border-bottom: 1px solid #444;">${c.nombre} ${c.apellido}</li>
