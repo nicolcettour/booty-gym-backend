@@ -1370,20 +1370,19 @@ app.get('/pagos', requerirAdmin, async (req, res) => {
 app.get('/pagos/agrupados', requerirAdmin, async (req, res) => {
 
     try {
-const query = `
-    SELECT
-        id,
-        monto,
-        nombre_completo,
-        fecha_pago,
-        medio_pago,
-        origen,
-        EXTRACT(YEAR FROM fecha_pago) as anio,
-        EXTRACT(MONTH FROM fecha_pago) as mes
-    FROM pagos
-    WHERE gym_id = $1
-    ORDER BY fecha_pago DESC
-`;
+
+        const query = `
+            SELECT
+                id,
+                monto,
+                nombre_completo,
+                fecha_pago,
+                EXTRACT(YEAR FROM fecha_pago) as anio,
+                EXTRACT(MONTH FROM fecha_pago) as mes
+            FROM pagos
+            WHERE gym_id = $1
+            ORDER BY fecha_pago DESC
+        `;
 
         const result =
             await db.query(
@@ -1391,17 +1390,19 @@ const query = `
                 [req.admin.gym_id]
             );
 
-        res.json(result.rows);
+        res.status(200).json(
+            result.rows
+        );
 
-    } catch (err) {
+    } catch (error) {
 
         console.error(
-            "ERROR EN SQL:",
-            err.message
+            'Error al obtener pagos agrupados:',
+            error
         );
 
         res.status(500).json({
-            error: err.message
+            error: error.message
         });
     }
 });
@@ -1453,14 +1454,13 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
 
         res.status(200).json({
             status: 'success',
-            message:
-                'Pago registrado correctamente'
+            message: 'Pago registrado correctamente'
         });
 
     } catch (error) {
 
         console.error(
-            "Error al registrar pago:",
+            'Error al registrar pago:',
             error
         );
 
@@ -1469,7 +1469,6 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
         });
     }
 });
-
 // ============================================================
 // BOOTY CLUB - BENEFICIOS
 // ============================================================
