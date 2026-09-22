@@ -60,37 +60,144 @@ window.GymApp.bootyclub = {
         if (el) el.innerText = frases[Math.floor(Math.random() * frases.length)];
     },
 
-    agregarBeneficio: function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            let beneficios = JSON.parse(localStorage.getItem('listaBeneficios')) || [];
-            beneficios.push(e.target.result);
-            localStorage.setItem('listaBeneficios', JSON.stringify(beneficios));
-            this.actualizarGaleria();
-        };
-        reader.readAsDataURL(file);
-    },
+    agregarBeneficio: async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-    actualizarGaleria: function() {
-        const contenedor = document.getElementById('contenedor-beneficios');
-        if (!contenedor) return;
-        let beneficios = JSON.parse(localStorage.getItem('listaBeneficios')) || [];
-        contenedor.innerHTML = beneficios.map((src, index) => `
-            <div class="tarjeta-beneficio">
-                <img src="${src}" alt="Beneficio">
-                <button class="btn-eliminar" onclick="window.GymApp.bootyclub.eliminarBeneficio(${index})">×</button>
-            </div>
-        `).join('');
-    },
+    try {
+        const token = localStorage.getItem('admin_token');
 
-    eliminarBeneficio: function(index) {
-        let beneficios = JSON.parse(localStorage.getItem('listaBeneficios')) || [];
-        beneficios.splice(index, 1);
-        localStorage.setItem('listaBeneficios', JSON.stringify(beneficios));
-        this.actualizarGaleria();
-    },
+        const formData = new FormData();
+        formData.append('imagen', file);
+
+        const res = await fetch(
+            'https://booty-gym-backend-1.onrender.com/booty-club/beneficios/upload',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token || ''}`
+                },
+                body: formData
+            }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(
+                data.error || 'No fue posible subir el beneficio.'
+            );
+        }
+
+        await this.actualizarGaleria();
+
+        event.target.value = '';
+
+    } catch (e) {
+        console.error(
+            'Error al agregar beneficio:',
+            e
+        );
+
+        alert(
+            e.message || 'No fue posible agregar el beneficio.'
+        );
+    }
+},
+
+    actualizarGaleria: async function() {
+    const contenedor =
+        document.getElementById('contenedor-beneficios');
+
+    if (!contenedor) return;
+
+    try {
+        const token =
+            localStorage.getItem('admin_token');
+
+        const res = await fetch(
+            'https://booty-gym-backend-1.onrender.com/booty-club/beneficios',
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token || ''}`
+                }
+            }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(
+                data.error || 'No fue posible cargar los beneficios.'
+            );
+        }
+
+        const beneficios =
+            data.beneficios || [];
+
+        contenedor.innerHTML =
+            beneficios.length > 0
+                ? beneficios.map(beneficio => `
+                    <div class="tarjeta-beneficio">
+                        <img src="${beneficio.imagen_url}" alt="Beneficio">
+                        <button
+                            class="btn-eliminar"
+                            onclick="window.GymApp.bootyclub.eliminarBeneficio(${beneficio.id})"
+                        >
+                            ×
+                        </button>
+                    </div>
+                `).join('')
+                : '<p style="color:#bbb; text-align:center;">No hay beneficios cargados.</p>';
+
+    } catch (e) {
+        console.error(
+            'Error al cargar beneficios:',
+            e
+        );
+
+        contenedor.innerHTML =
+            '<p style="color:#bbb; text-align:center;">No fue posible cargar los beneficios.</p>';
+    }
+},
+
+    eliminarBeneficio: async function(id) {
+    try {
+        const token =
+            localStorage.getItem('admin_token');
+
+        const res = await fetch(
+            `https://booty-gym-backend-1.onrender.com/booty-club/beneficios/${id}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token || ''}`
+                }
+            }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(
+                data.error || 'No fue posible eliminar el beneficio.'
+            );
+        }
+
+        await this.actualizarGaleria();
+
+    } catch (e) {
+        console.error(
+            'Error al eliminar beneficio:',
+            e
+        );
+
+        alert(
+            e.message || 'No fue posible eliminar el beneficio.'
+        );
+    }
+},
 
     renderizarListasBooty: async function() {
         const contenedor = document.getElementById('lista-beneficiarias');

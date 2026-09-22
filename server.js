@@ -4,9 +4,28 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const db = require('./config/db');
-
+const multer = require('multer');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const app = express();
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+});
 
+const s3 = new S3Client({
+    endpoint: process.env.AWS_ENDPOINT_URL_S3,
+    region: process.env.AWS_REGION,
+    forcePathStyle: true,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+});
+
+const BOOTY_CLUB_BUCKET =
+    process.env.BOOTY_CLUB_BUCKET || 'booty-club';
 app.use(cors());
 app.use(express.json());
 
@@ -1351,19 +1370,20 @@ app.get('/pagos', requerirAdmin, async (req, res) => {
 app.get('/pagos/agrupados', requerirAdmin, async (req, res) => {
 
     try {
-
-        const query = `
-            SELECT
-                id,
-                monto,
-                nombre_completo,
-                fecha_pago,
-                EXTRACT(YEAR FROM fecha_pago) as anio,
-                EXTRACT(MONTH FROM fecha_pago) as mes
-            FROM pagos
-            WHERE gym_id = $1
-            ORDER BY fecha_pago DESC
-        `;
+const query = `
+    SELECT
+        id,
+        monto,
+        nombre_completo,
+        fecha_pago,
+        medio_pago,
+        origen,
+        EXTRACT(YEAR FROM fecha_pago) as anio,
+        EXTRACT(MONTH FROM fecha_pago) as mes
+    FROM pagos
+    WHERE gym_id = $1
+    ORDER BY fecha_pago DESC
+`;
 
         const result =
             await db.query(
@@ -1450,6 +1470,213 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
     }
 });
 
+// ============================================================
+// BOOTY CLUB - BENEFICIOS
+// ============================================================
+
+app.get('/booty-club/beneficios', requerirAdmin, async (req, res) => {
+    try {
+        const result = await db.query(
+            `
+            SELECT
+                id,
+                gym_id,
+                imagen_url,
+                activo,
+                created_at
+            FROM booty_club_beneficios
+            WHERE gym_id = $1
+            AND activo = TRUE
+            ORDER BY created_at DESC
+            `,
+            [req.admin.gym_id]
+        );
+
+        res.status(200).json({
+            success: true,
+            beneficios: result.rows
+        });
+
+    } catch (err) {
+        console.error('Error al obtener beneficios Booty Club:', err);
+
+        res.status(500).json({
+            success: false,
+            error: 'No fue posible obtener los beneficios.'
+        });
+    }
+});
+app.post('/booty-club/beneficios', requerirAdmin, async (req, res) => {
+    try {
+        const { imagen_url } = req.body;
+
+        if (!imagen_url) {
+            return res.status(400).json({
+                success: false,
+                error: 'La imagen del beneficio es obligatoria.'
+            });
+        }
+
+        const result = await db.query(
+            `
+            INSERT INTO booty_club_beneficios
+            (
+                gym_id,
+                imagen_url,
+                activo
+            )
+            VALUES ($1, $2, TRUE)
+            RETURNING *
+            `,
+            [
+                req.admin.gym_id,
+                imagen_url
+            ]
+        );
+
+        res.status(201).json({
+            success: true,
+            beneficio: result.rows[0]
+        });
+
+    } catch (err) {
+        console.error('Error al crear beneficio Booty Club:', err);
+
+        res.status(500).json({
+            success: false,
+            error: 'No fue posible crear el beneficio.'
+        });
+    }
+});
+
+// PEGAR AQUÍ EL NUEVO ENDPOINT DE UPLOAD
+
+app.post(
+    '/booty-club/beneficios/upload',
+    requerirAdmin,
+    upload.single('imagen'),
+    async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Debes seleccionar una imagen.'
+                });
+            }
+
+            const tiposPermitidos = [
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ];
+
+            if (!tiposPermitidos.includes(req.file.mimetype)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Formato de imagen no permitido.'
+                });
+            }
+
+            const extension =
+                req.file.mimetype === 'image/png'
+                    ? 'png'
+                    : req.file.mimetype === 'image/webp'
+                        ? 'webp'
+                        : 'jpg';
+
+            const key =
+                `${req.admin.gym_id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+
+            await s3.send(
+                new PutObjectCommand({
+                    Bucket: BOOTY_CLUB_BUCKET,
+                    Key: key,
+                    Body: req.file.buffer,
+                    ContentType: req.file.mimetype
+                })
+            );
+
+            const endpoint =
+                String(process.env.AWS_ENDPOINT_URL_S3 || '')
+                    .replace(/\/$/, '');
+
+            const imagenUrl =
+                `${endpoint}/${BOOTY_CLUB_BUCKET}/${key}`;
+
+            const result = await db.query(
+                `
+                INSERT INTO booty_club_beneficios
+                (
+                    gym_id,
+                    imagen_url,
+                    activo
+                )
+                VALUES ($1, $2, TRUE)
+                RETURNING *
+                `,
+                [
+                    req.admin.gym_id,
+                    imagenUrl
+                ]
+            );
+
+            res.status(201).json({
+                success: true,
+                beneficio: result.rows[0]
+            });
+
+        } catch (err) {
+            console.error(
+                'Error al subir beneficio Booty Club:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                error: 'No fue posible subir el beneficio.'
+            });
+        }
+    }
+);
+
+app.delete('/booty-club/beneficios/:id', requerirAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await db.query(
+            `
+            DELETE FROM booty_club_beneficios
+            WHERE id = $1
+            AND gym_id = $2
+            RETURNING id
+            `,
+            [
+                id,
+                req.admin.gym_id
+            ]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Beneficio no encontrado.'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Beneficio eliminado correctamente.'
+        });
+
+    } catch (err) {
+        console.error('Error al eliminar beneficio Booty Club:', err);
+
+        res.status(500).json({
+            success: false,
+            error: 'No fue posible eliminar el beneficio.'
+        });
+    }
+});
 // ============================================================
 // RUTAS CONFIGURACIÓN
 // ============================================================
