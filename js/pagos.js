@@ -243,8 +243,27 @@ window.GymApp.pagos = {
 
             if (pagoEncontrado) {
                 totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
+
+                const fechaPago = pagoEncontrado.fecha_pago
+                    ? new Date(pagoEncontrado.fecha_pago).toLocaleDateString('es-AR')
+                    : '';
+
+                const medioPago =
+                    (pagoEncontrado.medio_pago || '').toLowerCase().includes('mercado')
+                        ? 'MP'
+                        : '';
+
+                const origenPago =
+                    pagoEncontrado.origen === 'APP_SOCIAS'
+                        ? 'App Socias'
+                        : '';
+
+                const detallePago = [fechaPago, medioPago, origenPago]
+                    .filter(Boolean)
+                    .join(' · ');
+
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
-                            ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>
+                            ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>${detallePago ? ` · ${detallePago}` : ''}
                         </li>`;
             } else {
                 let interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
