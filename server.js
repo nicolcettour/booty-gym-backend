@@ -419,6 +419,21 @@ const requerirAdmin = (req, res, next) => {
 
     next();
 };
+const requerirAdminPrincipal = (req, res, next) => {
+
+    if (
+        !req.admin ||
+        req.admin.username !== 'Priscila.admin'
+    ) {
+
+        return res.status(403).json({
+            success: false,
+            error: 'No tienes permisos para modificar Booty Club.'
+        });
+    }
+
+    next();
+};
 // ============================================================
 // RUTAS DE CLIENTAS
 // ============================================================
@@ -1477,16 +1492,17 @@ app.get('/booty-club/beneficios', requerirAdmin, async (req, res) => {
     try {
         const result = await db.query(
             `
-            SELECT
-                id,
-                gym_id,
-                imagen_url,
-                activo,
-                created_at
-            FROM booty_club_beneficios
-            WHERE gym_id = $1
-            AND activo = TRUE
-            ORDER BY created_at DESC
+           SELECT
+    id,
+    gym_id,
+    imagen_url,
+    descripcion,
+    activo,
+    created_at
+FROM booty_club_beneficios
+WHERE gym_id = $1
+AND activo = TRUE
+ORDER BY created_at DESC
             `,
             [req.admin.gym_id]
         );
@@ -1553,6 +1569,7 @@ app.post('/booty-club/beneficios', requerirAdmin, async (req, res) => {
 app.post(
     '/booty-club/beneficios/upload',
     requerirAdmin,
+    requerirAdminPrincipal,
     upload.single('imagen'),
     async (req, res) => {
         try {
@@ -1562,7 +1579,14 @@ app.post(
                     error: 'Debes seleccionar una imagen.'
                 });
             }
+const descripcion = String(req.body.descripcion || '').trim();
 
+if (!descripcion) {
+    return res.status(400).json({
+        success: false,
+        error: 'La descripción del beneficio es obligatoria.'
+    });
+}
             const tiposPermitidos = [
                 'image/jpeg',
                 'image/png',
@@ -1605,18 +1629,20 @@ app.post(
             const result = await db.query(
                 `
                 INSERT INTO booty_club_beneficios
-                (
-                    gym_id,
-                    imagen_url,
-                    activo
-                )
-                VALUES ($1, $2, TRUE)
-                RETURNING *
+(
+    gym_id,
+    imagen_url,
+    descripcion,
+    activo
+)
+VALUES ($1, $2, $3, TRUE)
+RETURNING *
                 `,
                 [
-                    req.admin.gym_id,
-                    imagenUrl
-                ]
+    req.admin.gym_id,
+    imagenUrl,
+    descripcion
+]
             );
 
             res.status(201).json({
@@ -1638,44 +1664,108 @@ app.post(
     }
 );
 
-app.delete('/booty-club/beneficios/:id', requerirAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
+app.delete(
+    '/booty-club/beneficios/:id',
+    requerirAdmin,
+    requerirAdminPrincipal,
+    async (req, res) => {
+        try {
 
-        const result = await db.query(
-            `
-            DELETE FROM booty_club_beneficios
-            WHERE id = $1
-            AND gym_id = $2
-            RETURNING id
-            `,
-            [
-                id,
-                req.admin.gym_id
-            ]
-        );
+            const { id } = req.params;
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({
+            const beneficioResult = await db.query(
+                `
+                SELECT
+                    id,
+                    imagen_url
+                FROM booty_club_beneficios
+                WHERE id = $1
+                AND gym_id = $2
+                LIMIT 1
+                `,
+                [
+                    id,
+                    req.admin.gym_id
+                ]
+            );
+
+            if (beneficioResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Beneficio no encontrado.'
+                });
+            }
+
+            const beneficio =
+                beneficioResult.rows[0];
+
+            await db.query(
+                `
+                DELETE FROM booty_club_beneficios
+                WHERE id = $1
+                AND gym_id = $2
+                `,
+                [
+                    id,
+                    req.admin.gym_id
+                ]
+            );
+
+            try {
+
+                const endpoint =
+                    String(
+                        process.env.AWS_ENDPOINT_URL_S3 || ''
+                    ).replace(/\/$/, '');
+
+                const prefijo =
+                    `${endpoint}/${BOOTY_CLUB_BUCKET}/`;
+
+                if (
+                    beneficio.imagen_url &&
+                    beneficio.imagen_url.startsWith(prefijo)
+                ) {
+
+                    const key =
+                        beneficio.imagen_url.substring(
+                            prefijo.length
+                        );
+
+                    await s3.send(
+                        new DeleteObjectCommand({
+                            Bucket: BOOTY_CLUB_BUCKET,
+                            Key: key
+                        })
+                    );
+                }
+
+            } catch (storageError) {
+
+                console.warn(
+                    'El beneficio se eliminó de Neon, pero no se pudo borrar la imagen del storage:',
+                    storageError
+                );
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Beneficio eliminado correctamente.'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'Error al eliminar beneficio Booty Club:',
+                err
+            );
+
+            res.status(500).json({
                 success: false,
-                error: 'Beneficio no encontrado.'
+                error: 'No fue posible eliminar el beneficio.'
             });
         }
-
-        res.status(200).json({
-            success: true,
-            message: 'Beneficio eliminado correctamente.'
-        });
-
-    } catch (err) {
-        console.error('Error al eliminar beneficio Booty Club:', err);
-
-        res.status(500).json({
-            success: false,
-            error: 'No fue posible eliminar el beneficio.'
-        });
     }
-});
+);
 // ============================================================
 // RUTAS CONFIGURACIÓN
 // ============================================================
