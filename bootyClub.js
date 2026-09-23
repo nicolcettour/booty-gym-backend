@@ -139,102 +139,80 @@ window.GymApp.bootyclub = {
                 ================================= */
 
                 .galeria-beneficios {
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                    align-items: flex-start;
-                    gap: 24px;
-                    padding: 18px 4px 30px;
-                    min-height: 120px;
-                }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 22px;
+    align-items: stretch;
+    justify-content: flex-start;
+}
 
-                .nube-beneficio {
-                    position: relative;
-                    width: 220px;
-                    background: rgba(255,255,255,.96);
-                    color: #222;
-                    padding: 13px;
-                    border-radius:
-                        45% 55% 48% 52% /
-                        55% 45% 55% 45%;
-                    box-shadow:
-                        0 12px 30px rgba(0,0,0,.28),
-                        0 0 0 5px rgba(255,154,139,.08);
-                    animation:
-                        nubeFlotar 4.5s ease-in-out infinite;
-                    transform-origin: center;
-                }
+.tarjeta-beneficio {
+    position: relative;
+    width: 260px;
+    background: #ffffff;
+    color: #222;
+    padding: 14px;
+    border-radius: 28px;
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.22),
+        0 0 0 1px rgba(255, 255, 255, 0.22);
 
-                .nube-beneficio:nth-child(2n) {
-                    animation-delay: -1.2s;
-                }
+    animation: nubeFlotar 4.5s ease-in-out infinite;
+    transform-origin: center;
+}
 
-                .nube-beneficio:nth-child(3n) {
-                    animation-delay: -2.3s;
-                }
+.tarjeta-beneficio:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+}
 
-                .nube-beneficio:nth-child(4n) {
-                    animation-delay: -.6s;
-                }
+.tarjeta-beneficio img {
+    display: block;
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 20px;
+}
 
-                .nube-beneficio img {
-                    display: block;
-                    width: 100%;
-                    aspect-ratio: 4 / 3;
-                    object-fit: cover;
-                    border-radius:
-                        38% 62% 42% 58% /
-                        54% 46% 54% 46%;
-                }
+.descripcion-beneficio {
+    padding: 12px 8px 6px;
+    text-align: center;
+    font-size: .92rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #222;
+}
 
-                .descripcion-beneficio {
-                    padding: 11px 8px 7px;
-                    text-align: center;
-                    font-size: .9rem;
-                    font-weight: 700;
-                    line-height: 1.4;
-                }
+.btn-eliminar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #d94c63;
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
 
-                .btn-eliminar-beneficio {
-                    position: absolute;
-                    top: -7px;
-                    right: -7px;
-                    width: 30px;
-                    height: 30px;
-                    border-radius: 50%;
-                    border: 2px solid #fff;
-                    background: #b8324a;
-                    color: #fff;
-                    font-size: 18px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    z-index: 5;
-                    box-shadow: 0 4px 12px rgba(0,0,0,.3);
-                }
+.btn-eliminar:hover {
+    transform: scale(1.05);
+}
 
-                @keyframes nubeFlotar {
-
-                    0%,
-                    100% {
-                        transform:
-                            translateY(0)
-                            rotate(-.4deg);
-                    }
-
-                    50% {
-                        transform:
-                            translateY(-10px)
-                            rotate(.5deg);
-                    }
-                }
-
-                .sin-beneficios {
-                    width: 100%;
-                    color: #aaa;
-                    text-align: center;
-                    padding: 25px 10px;
-                    font-size: .9rem;
-                }
+.estado-vacio-beneficios {
+    width: 100%;
+    text-align: center;
+    color: #bdbdbd;
+    padding: 28px 10px;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 24px;
+    background: rgba(255,255,255,0.02);
+}
 
 
                 /* ================================
@@ -307,9 +285,9 @@ window.GymApp.bootyclub = {
                         gap: 18px;
                     }
 
-                    .nube-beneficio {
-                        width: min(210px, 82vw);
-                    }
+                    .tarjeta-beneficio {
+    width: min(260px, 82vw);
+}
 
                     .img-personaje {
                         width: 125px;
@@ -756,7 +734,7 @@ window.GymApp.bootyclub = {
                 beneficios
                     .map(beneficio => `
 
-                        <div class="nube-beneficio">
+                        <div class="tarjeta-beneficio">
 
                             ${
                                 esAdmin
