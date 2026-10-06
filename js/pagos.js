@@ -4,6 +4,14 @@ window.GymApp.pagos = {
 
     apiBase: 'https://booty-gym-backend-1.onrender.com',
 
+    fechaArgentina: function() {
+        const partes = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date());
+        const valor = tipo => Number(partes.find(p => p.type === tipo).value);
+        return { mes: valor('month'), anio: valor('year'), dia: valor('day') };
+    },
+
     obtenerTokenAdmin: function() {
         return localStorage.getItem('admin_token');
     },
@@ -191,19 +199,25 @@ window.GymApp.pagos = {
     actualizarLista: async function() {
         const ul = document.getElementById('ul-pagos');
         const divResumen = document.getElementById('resumen-financiero');
+        let cuotasGuardadas = [];
         if (!ul) return;
 
         try {
             const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
             const urlClientas = `${this.apiBase}/clientas`;
             const resClientas = await fetch(urlClientas, { headers: this.headersAdmin() });
+            if (!resClientas.ok) throw new Error('No se pudieron cargar las clientas.');
             if (resClientas.ok) {
                 window.GymApp.config.clientas = await resClientas.json();
             }
 
             const urlPagos = `${this.apiBase}/pagos`;
             const resPagos = await fetch(urlPagos, { headers: this.headersAdmin() });
-            window.GymApp.pagosMesActual = resPagos.ok ? await resPagos.json() : [];
+            if (!resPagos.ok) throw new Error('No se pudieron cargar los pagos.');
+            window.GymApp.pagosMesActual = await resPagos.json();
+            const resCuotas = await fetch(`${this.apiBase}/cuotas`, { headers: this.headersAdmin() });
+            if (!resCuotas.ok) throw new Error('No se pudieron cargar las cuotas guardadas.');
+            cuotasGuardadas = await resCuotas.json();
 
             const urlConfig = `${this.apiBase}/config`;
             const resConfig = await fetch(urlConfig, { headers: this.headersAdmin() });
@@ -223,6 +237,9 @@ window.GymApp.pagos = {
             }
         } catch (err) {
             console.error("Error al sincronizar con BD:", err);
+            ul.innerHTML = '<p style="color:#ff4757;">No se pudieron cargar los pagos y las cuotas. Volvé a ingresar a esta pantalla.</p>';
+            if (divResumen) divResumen.innerHTML = '';
+            return;
         }
 
         const clientas = window.GymApp.config.clientas || [];
@@ -236,9 +253,7 @@ window.GymApp.pagos = {
         const pagosRegistrados = window.GymApp.pagosMesActual || [];
         const configPagos = window.GymApp.config.pagosConfig || { monto2dias: 0, monto3dias: 0, monto4dias: 0, monto5dias: 0, interesPorcentaje: 0 };
         
-        const mesActual = new Date().getMonth() + 1;
-        const anioActual = new Date().getFullYear();
-        const diaActual = new Date().getDate();
+        const { mes: mesActual, anio: anioActual, dia: diaActual } = this.fechaArgentina();
 
         let totalCobrado = 0;
         let totalAdeudado = 0;
@@ -247,52 +262,47 @@ window.GymApp.pagos = {
             const pagoEncontrado = pagosRegistrados.find(p => {
                 if (Number(p.clienta_id) !== Number(c.id)) return false;
 
-                // El mes/anio guardado representa la cuota que se está abonando.
-                // Esto es fundamental para poder registrar deudas de meses anteriores
-                // sin marcarlas por error como la cuota del mes actual.
-                if (p.mes != null && p.anio != null) {
-                    return Number(p.mes) === mesActual && Number(p.anio) === anioActual;
-                }
-
-                if (p.fecha_pago) {
-                    const fechaP = new Date(p.fecha_pago);
-                    return (fechaP.getMonth() + 1) === mesActual && fechaP.getFullYear() === anioActual;
-                }
-
-                return false;
+                const periodo = this.obtenerPeriodoPago(p);
+                return periodo && periodo.mes === mesActual && periodo.anio === anioActual;
             });
 
-            let montoBaseClienta = this.obtenerMontoBasePorClienta(c, configPagos);
+            const cuotaActual = cuotasGuardadas.find(q => Number(q.clienta_id) === Number(c.id) && q.mes === mesActual && q.anio === anioActual);
+            let montoBaseClienta = cuotaActual ? Number(cuotaActual.monto_base) : 0;
             let frecuenciaSemanal = this.obtenerFrecuenciaSemanal(c);
 
             if (pagoEncontrado) {
-                totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
+    totalCobrado += Number(pagoEncontrado.monto || montoBaseClienta);
 
-                const fechaPago = pagoEncontrado.fecha_pago
-                    ? new Date(pagoEncontrado.fecha_pago).toLocaleDateString('es-AR')
-                    : '';
+    const fechaPago = pagoEncontrado.fecha_pago
+        ? new Date(pagoEncontrado.fecha_pago).toLocaleDateString('es-AR')
+        : '';
 
-                const medioPago =
-                    (pagoEncontrado.medio_pago || '').toLowerCase().includes('mercado')
-                        ? 'MP'
-                        : '';
+    const medioPago =
+        (pagoEncontrado.medio_pago || '').toLowerCase().includes('mercado')
+            ? 'MP'
+            : '';
 
-                const origenPago =
-                    pagoEncontrado.origen === 'APP_SOCIAS'
-                        ? 'App Socias'
-                        : '';
+    const origenPago =
+        pagoEncontrado.origen === 'APP_SOCIAS'
+            ? 'App Socias'
+            : '';
 
-                const detallePago = [fechaPago, medioPago, origenPago]
-                    .filter(Boolean)
-                    .join(' · ');
+    const detallePago = [
+        fechaPago,
+        medioPago,
+        origenPago
+    ].filter(Boolean).join(' · ');
 
-                return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
-                            ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): <span style="color:#4caf50; font-weight:bold;">$${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado</span>${detallePago ? ` · ${detallePago}` : ''}
+    return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
+                ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): 
+                <span style="color:#4caf50; font-weight:bold;">
+                    $${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado
+                </span>
+                ${detallePago ? ` · ${detallePago}` : ''}
                         </li>`;
             } else {
-                let interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
-                let montoConInteresClienta = montoBaseClienta + (montoBaseClienta * interesDecimal);
-                let montoAPagar = (diaActual > 10) ? montoConInteresClienta : montoBaseClienta;
+                if (!cuotaActual) return '';
+                let montoAPagar = Number(cuotaActual.monto);
                 totalAdeudado += montoAPagar;
 
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
@@ -308,7 +318,7 @@ window.GymApp.pagos = {
                 divResumen.innerHTML = `
                     <div style="display:flex; justify-content:space-around;">
                         <p><strong>Total Cobrado:</strong> <span style="color:#4caf50; font-size:1.2em;">$${totalCobrado}</span></p>
-                        <p><strong>Total Adeudado:</strong> <span style="color:#ff4757; font-size:1.2em;">$${Math.round(totalAdeudado)}</span></p>
+                        <p><strong>Adeudado del mes:</strong> <span style="color:#ff4757; font-size:1.2em;">$${Math.round(totalAdeudado)}</span></p>
                     </div>`;
             }
         }
@@ -350,8 +360,8 @@ window.GymApp.pagos = {
             const cuerpoPeticion = {
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: new Date().getMonth() + 1,
-                anio: new Date().getFullYear(),
+                mes: this.fechaArgentina().mes,
+                anio: this.fechaArgentina().anio,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual
             };
@@ -405,102 +415,13 @@ window.GymApp.pagos = {
 
         const f = new Date(fecha);
         if (Number.isNaN(f.getTime())) return null;
-
+        const partes = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit'
+        }).formatToParts(f);
         return {
-            mes: f.getMonth() + 1,
-            anio: f.getFullYear()
+            mes: Number(partes.find(p => p.type === 'month').value),
+            anio: Number(partes.find(p => p.type === 'year').value)
         };
-    },
-
-    obtenerPrimerPeriodoDeuda: function(clienta, pagosClienta, hoy) {
-        // Si la base ya posee fecha de alta/creación, esa es la referencia más segura.
-        const fechaAltaBruta = clienta.fecha_alta || clienta.created_at || clienta.fecha_registro || clienta.fecha_ingreso;
-        if (fechaAltaBruta) {
-            const fechaAlta = new Date(fechaAltaBruta);
-            if (!Number.isNaN(fechaAlta.getTime())) {
-                return {
-                    mes: fechaAlta.getMonth() + 1,
-                    anio: fechaAlta.getFullYear()
-                };
-            }
-        }
-
-        // Para clientas antiguas sin fecha de alta, usamos el primer período de pago
-        // conocido. Así evitamos inventar deudas anteriores a la información real del sistema.
-        const periodos = pagosClienta
-            .map(p => this.obtenerPeriodoPago(p))
-            .filter(Boolean)
-            .sort((a, b) => (a.anio * 12 + a.mes) - (b.anio * 12 + b.mes));
-
-        if (periodos.length > 0) return periodos[0];
-
-        // Si nunca tuvo un pago registrado y no existe fecha de alta,
-        // empezamos en el mes actual para no generar deuda histórica ficticia.
-        return {
-            mes: hoy.getMonth() + 1,
-            anio: hoy.getFullYear()
-        };
-    },
-
-    calcularDeudas: function(clientas, pagosRegistrados, configPagos) {
-        const hoy = new Date();
-        const mesActual = hoy.getMonth() + 1;
-        const anioActual = hoy.getFullYear();
-        const diaActual = hoy.getDate();
-        const interesDecimal = Number(configPagos.interesPorcentaje || 0) / 100;
-        const deudas = [];
-
-        clientas.forEach(clienta => {
-            const pagosClienta = pagosRegistrados.filter(p => Number(p.clienta_id) === Number(clienta.id));
-            const pagados = new Set();
-
-            pagosClienta.forEach(p => {
-                const periodo = this.obtenerPeriodoPago(p);
-                if (periodo) pagados.add(`${periodo.anio}-${periodo.mes}`);
-            });
-
-            const inicio = this.obtenerPrimerPeriodoDeuda(clienta, pagosClienta, hoy);
-            let cursorAnio = inicio.anio;
-            let cursorMes = inicio.mes;
-            let guard = 0;
-
-            while ((cursorAnio < anioActual || (cursorAnio === anioActual && cursorMes <= mesActual)) && guard < 240) {
-                const clave = `${cursorAnio}-${cursorMes}`;
-
-                if (!pagados.has(clave)) {
-                    const montoBase = this.obtenerMontoBasePorClienta(clienta, configPagos);
-                    const esMesActual = cursorAnio === anioActual && cursorMes === mesActual;
-                    // Conservamos la regla que ya usa Booty Gym: luego del día 10 se aplica interés.
-                    const aplicaInteres = !esMesActual || diaActual > 10;
-                    const monto = aplicaInteres
-                        ? montoBase + (montoBase * interesDecimal)
-                        : montoBase;
-
-                    deudas.push({
-                        clienta,
-                        mes: cursorMes,
-                        anio: cursorAnio,
-                        monto: Math.round(monto),
-                        montoBase: Math.round(montoBase),
-                        frecuencia: this.obtenerFrecuenciaSemanal(clienta)
-                    });
-                }
-
-                cursorMes += 1;
-                if (cursorMes > 12) {
-                    cursorMes = 1;
-                    cursorAnio += 1;
-                }
-                guard += 1;
-            }
-        });
-
-        return deudas.sort((a, b) => {
-            const periodoA = a.anio * 12 + a.mes;
-            const periodoB = b.anio * 12 + b.mes;
-            if (periodoA !== periodoB) return periodoA - periodoB;
-            return `${a.clienta.nombre} ${a.clienta.apellido}`.localeCompare(`${b.clienta.nombre} ${b.clienta.apellido}`, 'es');
-        });
     },
 
     verDeudas: async function() {
@@ -524,30 +445,28 @@ window.GymApp.pagos = {
         `;
 
         try {
-            const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-            const [resClientas, resPagos, resConfig] = await Promise.all([
-                fetch(`${this.apiBase}/clientas`, { headers: this.headersAdmin() }),
-                fetch(`${this.apiBase}/pagos`, { headers: this.headersAdmin() }),
-                fetch(`${this.apiBase}/config`, { headers: this.headersAdmin() })
-            ]);
+            window.GymApp.deudasCalculadas = [];
+            const response = await fetch(`${this.apiBase}/cuotas`, { headers: this.headersAdmin() });
+            if (!response.ok) throw new Error('No se pudieron cargar las cuotas guardadas.');
+            const cuotas = await response.json();
+                        const hoyDeudas = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric',
+                month: '2-digit'
+            }).formatToParts(new Date());
 
-            if (!resClientas.ok || !resPagos.ok || !resConfig.ok) {
-                throw new Error('No fue posible obtener toda la información de pagos.');
-            }
+            const anioDeudas = Number(hoyDeudas.find(p => p.type === 'year').value);
+            const mesDeudas = Number(hoyDeudas.find(p => p.type === 'month').value);
+            const periodoActual = anioDeudas * 12 + mesDeudas;
 
-            const clientas = await resClientas.json();
-            const pagos = await resPagos.json();
-            const dataConfig = await resConfig.json();
-            const cuotaGeneral = Number(dataConfig.monto_cuota || 0);
-            const configPagos = {
-                monto2dias: Number(dataConfig.monto_2dias) || cuotaGeneral || 0,
-                monto3dias: Number(dataConfig.monto_3dias) || cuotaGeneral || 0,
-                monto4dias: Number(dataConfig.monto_4dias) || cuotaGeneral || 0,
-                monto5dias: Number(dataConfig.monto_5dias) || cuotaGeneral || 0,
-                interesPorcentaje: Number(dataConfig.interes || dataConfig.interesPorcentaje || 0)
-            };
-
-            window.GymApp.deudasCalculadas = this.calcularDeudas(clientas, pagos, configPagos);
+            window.GymApp.deudasCalculadas = cuotas.filter(q =>
+                !q.pagada &&
+                Number(q.anio) * 12 + Number(q.mes) < periodoActual
+            ).map(q => ({
+                clienta: { id: q.clienta_id, nombre: q.nombre, apellido: q.apellido },
+                mes: Number(q.mes), anio: Number(q.anio), monto: Number(q.monto),
+                montoBase: Number(q.monto_base), frecuencia: Number(q.frecuencia)
+            }));
             this.renderizarDeudas();
         } catch (e) {
             console.error('Error al calcular deudas:', e);
@@ -880,12 +799,105 @@ window.GymApp.pagos = {
                     <h3 style="margin:0; color:#4caf50;">Total recaudado en ${nombreMes}: $${totalMes}</h3>
                 </div>
                 <ul style="list-style:none; padding:0;">`;
-            
             pagos.forEach(p => {
-                html += `<li style="background:#222; padding:10px; margin-bottom:5px; border-radius:5px; color:white; border-left:3px solid #ff9a8b;">
-                            ${p.nombre_completo}: <span style="color:#4caf50;">$${p.monto}</span>
-                       </li>`;
-            });
+
+    const fechaPago = p.fecha_pago || p.created_at;
+    let fechaTexto = 'Fecha no disponible';
+
+    if (fechaPago) {
+        const fecha = new Date(fechaPago);
+
+        const fechaFormateada = fecha.toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        const horaFormateada = fecha.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        fechaTexto = `${fechaFormateada} a las ${horaFormateada} hrs`;
+    }
+
+    const montoFormateado = Number(p.monto || 0).toLocaleString('es-AR');
+
+    const esPagoApp = p.origen === 'APP_SOCIAS';
+
+    const medioPago = p.medio_pago || '';
+
+    const textoOrigen = esPagoApp
+        ? 'Pagado desde la app'
+        : '';
+
+    html += `
+        <li style="
+            background:#222;
+            padding:14px;
+            margin-bottom:10px;
+            border-radius:10px;
+            color:white;
+            border-left:3px solid #ff9a8b;
+        ">
+
+            <div style="
+                font-size:1.05em;
+                font-weight:bold;
+                margin-bottom:5px;
+            ">
+                ${p.nombre_completo || 'Clienta'}
+            </div>
+
+            <div style="
+                color:#ff9a8b;
+                font-weight:bold;
+                margin-bottom:4px;
+            ">
+                ${nombreMes}
+            </div>
+
+            <div style="
+                color:#aaa;
+                font-size:0.9em;
+                margin-bottom:8px;
+            ">
+                ${fechaTexto}
+            </div>
+
+            <div style="
+                color:#4caf50;
+                font-size:1.15em;
+                font-weight:bold;
+                margin-bottom:6px;
+            ">
+                $${montoFormateado}
+            </div>
+
+            ${medioPago ? `
+                <div style="
+                    color:#ddd;
+                    font-size:0.9em;
+                    margin-bottom:3px;
+                ">
+                    ${medioPago}
+                </div>
+            ` : ''}
+
+            ${textoOrigen ? `
+                <div style="
+                    color:#4caf50;
+                    font-size:0.85em;
+                    font-weight:bold;
+                ">
+                    ${textoOrigen}
+                </div>
+            ` : ''}
+
+        </li>
+    `;
+});
             html += `</ul>`;
         } else {
             html += `<p style="color:#ff9a8b; text-align:center; margin-top:20px; padding:20px; border:1px dashed #ff9a8b; border-radius:10px;">No se registran pagos en este mes.</p>`;
