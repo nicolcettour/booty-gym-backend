@@ -743,6 +743,11 @@ app.delete('/clientas/:id', requerirAdmin, async (req, res) => {
 
         const { id } = req.params;
 
+        const cuotas = await db.query('SELECT 1 FROM booty_cuotas WHERE gym_id=$1 AND clienta_id=$2 LIMIT 1', [req.admin.gym_id, id]);
+        if (cuotas.rows.length) {
+            return res.status(409).json({ error: 'Esta clienta tiene cuotas guardadas. No se puede eliminar su historial de cuotas y pagos.' });
+        }
+
         await db.query(
             'DELETE FROM pagos WHERE clienta_id = $1 AND gym_id = $2',
             [id, req.admin.gym_id]
@@ -1357,6 +1362,23 @@ app.post('/clientas/auth/reset-password', async (req, res) => {
 // ============================================================
 // RUTAS DE PAGOS
 // ============================================================
+// Cuotas persistentes: la sucursal se toma exclusivamente de la sesión.
+app.get('/cuotas', requerirAdmin, async (req, res) => {
+    try {
+        const gymId = req.admin.gym_id;
+        await db.query('SELECT booty_generar_cuotas($1::text)', [gymId]);
+        const habilitada = await db.query('SELECT 1 FROM booty_cuotas_gimnasios WHERE gym_id=$1', [gymId]);
+        if (!habilitada.rows.length) return res.status(409).json({ error: 'Esta sucursal todavía no tiene cuotas persistentes habilitadas.' });
+        const result = await db.query(`SELECT clienta_id, nombre, apellido, frecuencia,
+            mes, anio, monto_base, monto, pagada FROM booty_cuotas_estado
+            WHERE gym_id=$1 ORDER BY anio, mes, apellido, nombre`, [gymId]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error al obtener cuotas:', err.message);
+        res.status(500).json({ error: 'No se pudieron obtener las cuotas guardadas. Revisá la migración y las tarifas.' });
+    }
+});
+
 app.get('/pagos', requerirAdmin, async (req, res) => {
 
     try {
@@ -1388,15 +1410,17 @@ app.get('/pagos/agrupados', requerirAdmin, async (req, res) => {
 
         const query = `
             SELECT
-                id,
-                monto,
-                nombre_completo,
-                fecha_pago,
-                EXTRACT(YEAR FROM fecha_pago) as anio,
-                EXTRACT(MONTH FROM fecha_pago) as mes
-            FROM pagos
-            WHERE gym_id = $1
-            ORDER BY fecha_pago DESC
+    id,
+    monto,
+    nombre_completo,
+    fecha_pago,
+    medio_pago,
+    origen,
+    EXTRACT(YEAR FROM fecha_pago) as anio,
+    EXTRACT(MONTH FROM fecha_pago) as mes
+FROM pagos
+WHERE gym_id = $1
+ORDER BY fecha_pago DESC
         `;
 
         const result =
@@ -1405,19 +1429,17 @@ app.get('/pagos/agrupados', requerirAdmin, async (req, res) => {
                 [req.admin.gym_id]
             );
 
-        res.status(200).json(
-            result.rows
-        );
+        res.json(result.rows);
 
-    } catch (error) {
+    } catch (err) {
 
         console.error(
-            'Error al obtener pagos agrupados:',
-            error
+            "ERROR EN SQL:",
+            err.message
         );
 
         res.status(500).json({
-            error: error.message
+            error: err.message
         });
     }
 });
@@ -1436,6 +1458,25 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
             usuario_registro,
             fecha_pago
         } = req.body;
+
+        const habilitada = await db.query('SELECT 1 FROM booty_cuotas_gimnasios WHERE gym_id=$1', [req.admin.gym_id]);
+        if (habilitada.rows.length) {
+            const fechaAR = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit'
+            }).formatToParts(new Date());
+            const mesActual = Number(fechaAR.find(p => p.type === 'month').value);
+            const anioActual = Number(fechaAR.find(p => p.type === 'year').value);
+            const periodoMes = Number(mes ?? mesActual);
+            const periodoAnio = Number(anio ?? anioActual);
+            if (!Number.isInteger(Number(clienta_id)) || !Number.isInteger(periodoMes) ||
+                !Number.isInteger(periodoAnio) || periodoMes < 1 || periodoMes > 12 ||
+                !Number.isFinite(Number(monto)) || Number(monto) <= 0) {
+                return res.status(400).json({ error: 'Clienta, período o importe inválido.' });
+            }
+            await db.query('SELECT booty_registrar_pago($1::text,$2::integer,$3::integer,$4::integer,$5::numeric,$6::text)',
+                [req.admin.gym_id, Number(clienta_id), periodoMes, periodoAnio, Number(monto), usuario_registro || 'Admin']);
+            return res.status(200).json({ status: 'success', message: 'Pago registrado correctamente' });
+        }
 
         const query = `
             INSERT INTO pagos
@@ -1469,13 +1510,14 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
 
         res.status(200).json({
             status: 'success',
-            message: 'Pago registrado correctamente'
+            message:
+                'Pago registrado correctamente'
         });
 
     } catch (error) {
 
         console.error(
-            'Error al registrar pago:',
+            "Error al registrar pago:",
             error
         );
 
