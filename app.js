@@ -64,7 +64,7 @@ setTimeout(() => {
 }, 500);
 
 // 4. Definimos la función de navegación
-window.GymApp.cambiarVista = function(vista) {
+window.GymApp.cambiarVista = async function(vista) {
     if (!window.GymApp.adminLogueado) {
         document.getElementById('sidebar').style.display = 'none';
         window.GymApp.login.renderizar();
@@ -76,8 +76,8 @@ window.GymApp.cambiarVista = function(vista) {
     switch(vista) {
         case 'CLIENTAS':
             main.innerHTML = `${window.GymApp.renderLogo()} <h2>Panel de Clientas</h2><div id="contenido-dinamico"></div><ul id="ul-clientas"></ul>`;
-            window.GymApp.clientas.cargarFormulario(window.GymApp.config.clientas, window.GymApp.config.horarios);
-            window.GymApp.clientas.actualizarLista(window.GymApp.config.clientas);
+            window.GymApp.clientas.mostrarBajas = false;
+            await window.GymApp.clientas.cargarDesdeServidor();
             break;
         case 'RUTINAS':
             main.innerHTML = `${window.GymApp.renderLogo()} <h2>Control de Horarios</h2><div id="dias-semana"></div><div id="detalle-horario"></div>`;
@@ -88,6 +88,19 @@ window.GymApp.cambiarVista = function(vista) {
             if (window.GymApp.pagos) window.GymApp.pagos.renderizarInterfaz();
             break;
         case 'CONFIG':
+            try {
+                const respuestaConfig = await fetch(`${window.GymApp.pagos.apiBase}/config`, {headers:window.GymApp.pagos.headersAdmin()});
+                if (!respuestaConfig.ok) throw new Error('No se pudo cargar la configuración');
+                const cfg = await respuestaConfig.json();
+                window.GymApp.config.pagosConfig = {
+                    monto2dias:Number(cfg.monto_2dias || cfg.monto_cuota || 0),
+                    monto3dias:Number(cfg.monto_3dias || cfg.monto_cuota || 0),
+                    monto4dias:Number(cfg.monto_4dias || cfg.monto_cuota || 0),
+                    monto5dias:Number(cfg.monto_5dias || cfg.monto_cuota || 0),
+                    interesPorcentaje:Number(cfg.interes || 0),
+                    descuentoFamiliarPorcentaje:Number(cfg.descuento_familiar_porcentaje || 0)
+                };
+            } catch(e) { alert(e.message); break; }
             main.innerHTML = `
                 ${window.GymApp.renderLogo()}
                 <h2 style="color: #ff9a8b; text-align: center;">Configuración de Pagos</h2>
@@ -104,6 +117,9 @@ window.GymApp.cambiarVista = function(vista) {
                     <label>Monto 5 Días ($):</label>
                     <input type="number" id="in-monto-5dias" value="${window.GymApp.config.pagosConfig.monto5dias || ''}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
 
+                    <label>Descuento familiar (%):</label>
+                    <input type="number" id="in-descuento-familiar" min="0" max="100" step="0.01" value="${window.GymApp.config.pagosConfig.descuentoFamiliarPorcentaje || 0}" style="width:100%; margin-bottom:10px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
+                    <p style="font-size:0.85em; color:#aaa;">Para las clientas con descuento familiar activo. Al cambiarlo se actualizan las cuotas pendientes de este mes; los pagos y meses anteriores se conservan. El interés se calcula sobre la cuota con descuento.</p>
                     <label>Interés (%):</label>
                     <input type="number" id="in-interes" value="${window.GymApp.config.pagosConfig.interesPorcentaje || ''}" style="width:100%; margin-bottom:20px; padding:8px; background:#111; color:#fff; border:1px solid #444;">
                     
