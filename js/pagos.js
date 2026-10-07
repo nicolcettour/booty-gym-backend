@@ -204,7 +204,7 @@ window.GymApp.pagos = {
 
         try {
             const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
-            const urlClientas = `${this.apiBase}/clientas`;
+            const urlClientas = `${this.apiBase}/clientas?estado=todas`;
             const resClientas = await fetch(urlClientas, { headers: this.headersAdmin() });
             if (!resClientas.ok) throw new Error('No se pudieron cargar las clientas.');
             if (resClientas.ok) {
@@ -232,7 +232,8 @@ window.GymApp.pagos = {
                     monto3dias: Number(dataConfig.monto_3dias) || cuotaGeneral || 0,
                     monto4dias: Number(dataConfig.monto_4dias) || cuotaGeneral || 0,
                     monto5dias: Number(dataConfig.monto_5dias) || cuotaGeneral || 0,
-                    interesPorcentaje: Number(dataConfig.interes || dataConfig.interesPorcentaje || 0)
+                    interesPorcentaje: Number(dataConfig.interes || dataConfig.interesPorcentaje || 0),
+                    descuentoFamiliarPorcentaje: Number(dataConfig.descuento_familiar_porcentaje || 0)
                 };
             }
         } catch (err) {
@@ -267,6 +268,8 @@ window.GymApp.pagos = {
             });
 
             const cuotaActual = cuotasGuardadas.find(q => Number(q.clienta_id) === Number(c.id) && q.mes === mesActual && q.anio === anioActual);
+            if (!cuotaActual && !pagoEncontrado) return '';
+            const detalleCuota = `${c.activa === false ? ' · Dada de baja' : ''}${Number(cuotaActual?.descuento_porcentaje) > 0 ? ' · Familiar ' + Number(cuotaActual.descuento_porcentaje) + '%' : ''}`;
             let montoBaseClienta = cuotaActual ? Number(cuotaActual.monto_base) : 0;
             let frecuenciaSemanal = this.obtenerFrecuenciaSemanal(c);
 
@@ -294,7 +297,7 @@ window.GymApp.pagos = {
     ].filter(Boolean).join(' · ');
 
     return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
-                ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): 
+                ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días)${detalleCuota}: 
                 <span style="color:#4caf50; font-weight:bold;">
                     $${pagoEncontrado.monto || montoBaseClienta} ✅ Pagado
                 </span>
@@ -306,7 +309,7 @@ window.GymApp.pagos = {
                 totalAdeudado += montoAPagar;
 
                 return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items: center; color: #ff4757; font-weight:bold;">
-                            <span>${c.nombre} ${c.apellido} (${frecuenciaSemanal} días): $${Math.round(montoAPagar)}</span>
+                            <span>${c.nombre} ${c.apellido} (${frecuenciaSemanal} días)${detalleCuota}: $${Math.round(montoAPagar)}</span>
                             <button id="btn-pagar-${c.id}" onclick="window.GymApp.pagos.registrar(${i}, ${Math.round(montoAPagar)}, this)" style="background: linear-gradient(to right, #ff9a8b, #ff6a88); color: black; border: none; padding: 5px 15px; border-radius: 15px; font-weight: bold; cursor: pointer;">Registrar</button>
                         </li>`;
             }
@@ -449,15 +452,8 @@ window.GymApp.pagos = {
             const response = await fetch(`${this.apiBase}/cuotas`, { headers: this.headersAdmin() });
             if (!response.ok) throw new Error('No se pudieron cargar las cuotas guardadas.');
             const cuotas = await response.json();
-                        const hoyDeudas = new Intl.DateTimeFormat('en-CA', {
-                timeZone: 'America/Argentina/Buenos_Aires',
-                year: 'numeric',
-                month: '2-digit'
-            }).formatToParts(new Date());
-
-            const anioDeudas = Number(hoyDeudas.find(p => p.type === 'year').value);
-            const mesDeudas = Number(hoyDeudas.find(p => p.type === 'month').value);
-            const periodoActual = anioDeudas * 12 + mesDeudas;
+            const {mes,anio} = this.fechaArgentina();
+            const periodoActual = anio*12+mes;
 
             window.GymApp.deudasCalculadas = cuotas.filter(q =>
                 !q.pagada &&
@@ -915,7 +911,13 @@ window.GymApp.pagos = {
         const input5 = document.getElementById('in-monto-5dias');
         const inputInteres = document.getElementById('in-interes');
 
+        const inputDescuento = document.getElementById('in-descuento-familiar');
+        const descuento = Number(inputDescuento?.value);
+        if (!inputDescuento || inputDescuento.value.trim() === '' || !Number.isFinite(descuento) || descuento<0 || descuento>100) {
+            alert('Ingresá un descuento entre 0 y 100.'); return;
+        }
         const datosConfig = {
+            descuento_familiar_porcentaje: descuento,
             monto_2dias: input2 ? (Number(input2.value) || 0) : 0,
             monto_3dias: input3 ? (Number(input3.value) || 0) : 0,
             monto_4dias: input4 ? (Number(input4.value) || 0) : 0,

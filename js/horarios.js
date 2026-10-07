@@ -12,7 +12,7 @@ window.GymApp.horarios = {
         if (!contenedor) return;
 
         const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-        const clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
+        const clientas = (JSON.parse(localStorage.getItem('listaClientas')) || []).filter(c => c.activa !== false);
 
         contenedor.innerHTML = dias.map(d => {
             const cantidadDia = clientas.filter(c => c.dias && c.dias.includes(d)).length;
@@ -35,7 +35,7 @@ window.GymApp.horarios = {
         }
 
         const horarios = this.horariosDefault;
-        const clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
+        const clientas = (JSON.parse(localStorage.getItem('listaClientas')) || []).filter(c => c.activa !== false);
         const clientasDia = clientas.filter(c => c.dias && c.dias.includes(dia));
         
         contenedor.innerHTML = `
@@ -60,7 +60,7 @@ window.GymApp.horarios = {
         const contenedor = document.getElementById('detalle-horario');
         if (!contenedor) return;
 
-        const clientas = JSON.parse(localStorage.getItem('listaClientas')) || [];
+        const clientas = (JSON.parse(localStorage.getItem('listaClientas')) || []).filter(c => c.activa !== false);
         const filtradas = clientas.filter(c => c.horario === horario && (c.dias && c.dias.includes(dia)));
 
         contenedor.innerHTML = `

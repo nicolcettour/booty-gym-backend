@@ -446,11 +446,11 @@ app.get('/clientas', requerirAdmin, async (req, res) => {
                 `
                 SELECT *
                 FROM clientas
-                WHERE gym_id = $1
+                WHERE gym_id = $1 AND ($2::boolean IS NULL OR activa=$2)
                 ORDER BY nombre ASC, apellido ASC
                 `,
                 [
-                    req.admin.gym_id
+                    req.admin.gym_id, req.query.estado === 'todas' ? null : req.query.estado !== 'bajas'
                 ]
             );
 
@@ -478,6 +478,8 @@ app.get('/clientas', requerirAdmin, async (req, res) => {
 // ------------------------------------------------------------
 app.post('/clientas', requerirAdmin, async (req, res) => {
     try {
+        if (req.body.descuento_familiar !== undefined && typeof req.body.descuento_familiar !== 'boolean')
+            return res.status(400).json({error:'Descuento familiar inválido'});
         const {
             nombre,
             apellido,
@@ -534,13 +536,13 @@ app.post('/clientas', requerirAdmin, async (req, res) => {
                 gemelos,
                 salud,
                 objetivo,
-                gym_id
+                gym_id, descuento_familiar
             )
             VALUES
             (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9,
                 $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, $19
+                $17, $18, $19, $20
             )
             RETURNING *
         `;
@@ -564,7 +566,8 @@ app.post('/clientas', requerirAdmin, async (req, res) => {
             gemelos || null,           // $16
             salud || 'no',             // $17
             objetivo || '',            // $18
-            req.admin.gym_id           // $19
+            req.admin.gym_id,          // $19
+            req.body.descuento_familiar === true // $20
         ];
 
         const result = await db.query(query, values);
@@ -588,6 +591,8 @@ app.put('/clientas/:id', requerirAdmin, async (req, res) => {
         const { id } = req.params;
 
         const body = req.body;
+        if (body.descuento_familiar !== undefined && typeof body.descuento_familiar !== 'boolean')
+            return res.status(400).json({error:'Descuento familiar inválido'});
 
         const nombreFormateado =
             capitalizar(body.nombre);
@@ -678,7 +683,8 @@ app.put('/clientas/:id', requerirAdmin, async (req, res) => {
                 cuadriceps=$15,
                 gemelos=$16,
                 salud=$17,
-                objetivo=$18
+                objetivo=$18,
+                descuento_familiar=coalesce($21::boolean,descuento_familiar)
             WHERE id=$19
             AND gym_id=$20
         `;
@@ -704,7 +710,8 @@ app.put('/clientas/:id', requerirAdmin, async (req, res) => {
             salud,
             objetivo,
             id,
-            req.admin.gym_id
+            req.admin.gym_id,
+            body.descuento_familiar ?? null
 
         ];
 
@@ -737,57 +744,35 @@ app.put('/clientas/:id', requerirAdmin, async (req, res) => {
 // ELIMINAR CLIENTA
 // ------------------------------------------------------------
 
-app.delete('/clientas/:id', requerirAdmin, async (req, res) => {
-
+// La baja conserva la clienta, sus cuotas y sus pagos.
+app.delete('/clientas/:id', requerirAdmin, (req,res) => {
+    res.status(405).json({error:'Usá Dar de baja para conservar el historial.'});
+});
+app.post('/clientas/:id/actividad', requerirAdmin, async (req,res) => {
+    const id=Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id<=0 || typeof req.body.activa !== 'boolean')
+        return res.status(400).json({error:'Datos de actividad inválidos'});
     try {
-
-        const { id } = req.params;
-
-        const cuotas = await db.query('SELECT 1 FROM booty_cuotas WHERE gym_id=$1 AND clienta_id=$2 LIMIT 1', [req.admin.gym_id, id]);
-        if (cuotas.rows.length) {
-            return res.status(409).json({ error: 'Esta clienta tiene cuotas guardadas. No se puede eliminar su historial de cuotas y pagos.' });
-        }
-
-        await db.query(
-            'DELETE FROM pagos WHERE clienta_id = $1 AND gym_id = $2',
-            [id, req.admin.gym_id]
-        );
-
-        const query =
-            'DELETE FROM clientas WHERE id = $1 AND gym_id = $2';
-
-        const result =
-            await db.query(
-                query,
-                [id, req.admin.gym_id]
-            );
-
-        if (result.rowCount === 0) {
-
-            return res.status(404).json({
-                error: 'Clienta no encontrada'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message:
-                'Clienta eliminada correctamente'
-        });
-
-    } catch (err) {
-
-        console.error(
-            "Error al eliminar clienta:",
-            err
-        );
-
-        res.status(500).json({
-            error: 'Error al eliminar clienta'
-        });
+        await db.query('SELECT booty_cambiar_actividad($1::text,$2::integer,$3::boolean,$4::text)',
+            [req.admin.gym_id,id,req.body.activa,req.admin.username]);
+        res.json({success:true});
+    } catch(err) {
+        res.status(err.code==='P0002'?404:409).json({error:err.message});
     }
 });
-
+app.post('/clientas/:id/descuento-familiar', requerirAdmin, async (req,res) => {
+    const id=Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id<=0 || typeof req.body.activo !== 'boolean')
+        return res.status(400).json({error:'Descuento familiar inválido'});
+    try {
+        const result=await db.query('UPDATE clientas SET descuento_familiar=$1 WHERE id=$2 AND gym_id=$3 RETURNING id,descuento_familiar',
+            [req.body.activo,id,req.admin.gym_id]);
+        if (!result.rowCount) return res.status(404).json({error:'Clienta no encontrada'});
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(409).json({error:err.message});
+    }
+});
 
 // ============================================================
 // AUTENTICACIÓN DE SOCIAS
@@ -1370,7 +1355,7 @@ app.get('/cuotas', requerirAdmin, async (req, res) => {
         const habilitada = await db.query('SELECT 1 FROM booty_cuotas_gimnasios WHERE gym_id=$1', [gymId]);
         if (!habilitada.rows.length) return res.status(409).json({ error: 'Esta sucursal todavía no tiene cuotas persistentes habilitadas.' });
         const result = await db.query(`SELECT clienta_id, nombre, apellido, frecuencia,
-            mes, anio, monto_base, monto, pagada FROM booty_cuotas_estado
+            mes, anio, monto_base, monto, pagada, monto_sin_descuento, descuento_porcentaje FROM booty_cuotas_estado
             WHERE gym_id=$1 ORDER BY anio, mes, apellido, nombre`, [gymId]);
         res.json(result.rows);
     } catch (err) {
@@ -1470,7 +1455,7 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
             const periodoAnio = Number(anio ?? anioActual);
             if (!Number.isInteger(Number(clienta_id)) || !Number.isInteger(periodoMes) ||
                 !Number.isInteger(periodoAnio) || periodoMes < 1 || periodoMes > 12 ||
-                !Number.isFinite(Number(monto)) || Number(monto) <= 0) {
+                monto === null || monto === undefined || monto === '' || !Number.isFinite(Number(monto)) || Number(monto) < 0) {
                 return res.status(400).json({ error: 'Clienta, período o importe inválido.' });
             }
             await db.query('SELECT booty_registrar_pago($1::text,$2::integer,$3::integer,$4::integer,$5::numeric,$6::text)',
@@ -1867,6 +1852,9 @@ app.post('/config', requerirAdmin, async (req, res) => {
     } = req.body;
 
     const idGym = req.admin.gym_id;
+    const descuento = req.body.descuento_familiar_porcentaje;
+    if (descuento !== undefined && (typeof descuento !== 'number' || !Number.isFinite(descuento) || descuento<0 || descuento>100))
+        return res.status(400).json({error:'El descuento debe estar entre 0 y 100.'});
 
     console.log(
         "DATOS RECIBIDOS EN CONFIG:",
@@ -1898,7 +1886,8 @@ app.post('/config', requerirAdmin, async (req, res) => {
                     monto_3dias = $2,
                     monto_4dias = $3,
                     monto_5dias = $4,
-                    interes = $5
+                    interes = $5,
+                    descuento_familiar_porcentaje=coalesce($7::numeric,descuento_familiar_porcentaje)
                 WHERE gym_id = $6
                 `,
                 [
@@ -1907,7 +1896,8 @@ app.post('/config', requerirAdmin, async (req, res) => {
                     monto_4dias,
                     monto_5dias,
                     interes,
-                    idGym
+                    idGym,
+                    descuento ?? null
                 ]
             );
 
@@ -1922,10 +1912,10 @@ app.post('/config', requerirAdmin, async (req, res) => {
                     monto_3dias,
                     monto_4dias,
                     monto_5dias,
-                    interes
+                    interes, descuento_familiar_porcentaje
                 )
                 VALUES
-                ($1, $2, $3, $4, $5, $6)
+                ($1, $2, $3, $4, $5, $6, $7)
                 `,
                 [
                     idGym,
@@ -1933,7 +1923,8 @@ app.post('/config', requerirAdmin, async (req, res) => {
                     monto_3dias,
                     monto_4dias,
                     monto_5dias,
-                    interes
+                    interes,
+                    descuento ?? 0
                 ]
             );
         }

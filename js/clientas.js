@@ -2,6 +2,9 @@ window.GymApp = window.GymApp || {};
 
 window.GymApp.clientas = {
 
+    mostrarBajas: false,
+    listaCompleta: [],
+    listaVisible: [],
     apiBase: 'https://booty-gym-backend-1.onrender.com',
 
     obtenerTokenAdmin: function() {
@@ -33,35 +36,37 @@ window.GymApp.clientas = {
     // Nueva función para traer los datos reales de Postgres al iniciar
     cargarDesdeServidor: async function() {
         try {
-            const res = await fetch(`${this.apiBase}/clientas`, {
+            const res = await fetch(`${this.apiBase}/clientas?estado=todas`, {
                 method: 'GET',
                 headers: this.headersAdmin()
             });
             if (!res.ok) throw new Error(`Error ${res.status} al cargar clientas`);
             const data = await res.json();
 
-            window.GymApp.config.clientas = data;
-            localStorage.setItem('listaClientas', JSON.stringify(data));
+            this.listaCompleta = data;
+            window.GymApp.config.clientas = data.filter(c => c.activa !== false);
+            localStorage.setItem('listaClientas', JSON.stringify(window.GymApp.config.clientas));
 
             this.actualizarLista(data);
 
         } catch (e) {
-            console.error("Error al cargar desde servidor, usando respaldo local");
-
-            const local = JSON.parse(localStorage.getItem('listaClientas')) || [];
-
-            this.actualizarLista(local);
+            console.error(e);
+            alert('No se pudieron cargar las clientas. Volvé a intentar.');
         }
     },
 
  actualizarLista: function(clientas) {
-        const listaClientas = clientas || []; // <-- Blindaje para evitar que explote si viene undefined
+        const listaClientas = (clientas || []).filter(c => this.mostrarBajas ? c.activa === false : c.activa !== false);
+        this.listaVisible = listaClientas; // <-- Blindaje para evitar que explote si viene undefined
         const contenedor = document.getElementById('contenido-dinamico');
 
         if (!contenedor) return;
 
         contenedor.innerHTML = `
             <div style="margin-bottom: 20px;">
+                <button onclick="window.GymApp.clientas.cambiarListado(false)" style="padding:10px; margin:4px;">Activas</button>
+                <button onclick="window.GymApp.clientas.cambiarListado(true)" style="padding:10px; margin:4px;">Clientas dadas de baja</button>
+                <h3>${this.mostrarBajas ? 'Clientas dadas de baja' : 'Clientas activas'}</h3>
                 <button onclick="window.GymApp.clientas.cargarFormulario(window.GymApp.config.clientas, window.GymApp.config.horarios)" 
                     style="width: 100%; padding: 12px; background: #ff6b8e; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
                     + Agregar Nueva Clienta
@@ -137,16 +142,21 @@ window.GymApp.clientas = {
                                 <strong>Objetivo:</strong> ${c.objetivo}
                             </p>
 
+                            <p>${c.activa === false ? 'Dada de baja · conserva su historial' : 'Activa'}</p>
+                            <button aria-pressed="${c.descuento_familiar === true}" onclick="window.GymApp.clientas.cambiarDescuento(${i})"
+                                style="padding:10px; border-radius:6px; background:${c.descuento_familiar ? '#ff9a8b' : '#444'}; color:${c.descuento_familiar ? '#000' : '#fff'};">
+                                Descuento familiar: ${c.descuento_familiar ? 'ACTIVO' : 'INACTIVO'}
+                            </button>
                             <div style="margin-top: 15px;">
 
-                                <button onclick="window.GymApp.clientas.cargarFormulario(window.GymApp.config.clientas, window.GymApp.config.horarios, ${i})"
+                                <button onclick="window.GymApp.clientas.cargarFormulario(window.GymApp.clientas.listaVisible, window.GymApp.config.horarios, ${i})"
                                     style="background: #ff6b8e; border:none; padding:8px 15px; cursor:pointer; color: #000; font-weight: bold; border-radius: 5px;">
                                     Editar Ficha
                                 </button>
 
-                                <button onclick="window.GymApp.clientas.eliminar(${i})"
+                                <button onclick="window.GymApp.clientas.cambiarActividad(${i})"
                                     style="background: #555; color: white; border:none; padding:8px 15px; cursor:pointer; margin-left:10px; border-radius: 5px;">
-                                    Eliminar
+                                    ${c.activa === false ? 'Reactivar' : 'Dar de baja'}
                                 </button>
 
                             </div>
@@ -199,6 +209,11 @@ window.GymApp.clientas = {
                     ${i !== null ? 'Modificar Ficha' : 'Ficha Técnica Integral'}
                 </h3>
 
+                <button type="button" id="descuento-familiar" aria-pressed="${c.descuento_familiar === true}"
+                    onclick="window.GymApp.clientas.toggleDescuentoFormulario(this)" style="padding:10px; margin:8px 0;">
+                    Descuento familiar: ${c.descuento_familiar ? 'ACTIVO' : 'INACTIVO'}
+                </button>
+                <p style="color:#aaa;">El porcentaje se define en Configuración de Pagos. Solo cambia la cuota pendiente del mes actual y las futuras.</p>
                 <input type="text"
                     id="nombre"
                     value="${c.nombre || ''}"
@@ -303,12 +318,13 @@ window.GymApp.clientas = {
     },
 guardar: async function() {
     console.log("🚀 Hice click en guardar y entré a la función");
-        alert("DNI escrito: " + document.getElementById('dni').value + " | Email escrito: " + document.getElementById('email').value);
+
         // ---------------------------------
 
         const index = document.getElementById('edit-index').value;
         const clientId = document.getElementById('clienta-id').value;
         const nuevaClienta = {
+            descuento_familiar: document.getElementById('descuento-familiar').getAttribute('aria-pressed') === 'true',
             nombre: document.getElementById('nombre').value,
             apellido: document.getElementById('apellido').value,
             dni: document.getElementById('dni').value.trim(),
@@ -412,35 +428,42 @@ guardar: async function() {
         }
     },
 
-    eliminar: async function(i) {
-        if (confirm('¿Segura de eliminar esta clienta?')) {
-            const clientasActuales = window.GymApp.config.clientas || [];
-            const clientaAEliminar = clientasActuales[i];
-
-            if (!clientaAEliminar || !clientaAEliminar.id) {
-                alert("Error: No se pudo identificar el ID de la clienta.");
-                return;
-            }
-
-            try {
-                const response = await fetch(
-                    `${this.apiBase}/clientas/${clientaAEliminar.id}`,
-                    {
-                        method: 'DELETE',
-                        headers: this.headersAdmin()
-                    }
-                );
-
-                if (response.ok) {
-                    await this.cargarDesdeServidor();
-                } else {
-                    alert("No se pudo eliminar la clienta del servidor.");
-                }
-
-            } catch (error) {
-                console.error("Error de conexión al eliminar:", error);
-                alert("Error de conexión con el servidor.");
-            }
-        }
+    cambiarListado: async function(bajas) {
+        this.mostrarBajas = bajas;
+        await this.cargarDesdeServidor();
+    },
+    toggleDescuentoFormulario: function(boton) {
+        const activo = boton.getAttribute('aria-pressed') !== 'true';
+        boton.setAttribute('aria-pressed',String(activo));
+        boton.textContent = 'Descuento familiar: ' + (activo ? 'ACTIVO' : 'INACTIVO');
+    },
+    cambiarActividad: async function(i) {
+        const c = this.listaVisible[i];
+        if (!c) return;
+        const activa = c.activa === false;
+        const mensaje = activa
+            ? '¿Reactivar a ' + c.nombre + ' ' + c.apellido + '? Generará cuota desde este mes, sin cobrar los meses de baja.'
+            : '¿Dar de baja a ' + c.nombre + ' ' + c.apellido + '? Se conservan la cuota de este mes, las deudas y los pagos. No generará cuotas desde el mes siguiente.';
+        if (!confirm(mensaje)) return;
+        await this.enviarCambio(c.id,'actividad',{activa});
+    },
+    cambiarDescuento: async function(i) {
+        const c = this.listaVisible[i];
+        if (!c) return;
+        if (!confirm('¿' + (c.descuento_familiar ? 'Desactivar' : 'Activar') + ' descuento familiar para ' + c.nombre + ' ' + c.apellido + '? Se actualizará la cuota pendiente de este mes.')) return;
+        await this.enviarCambio(c.id,'descuento-familiar',{activo:!c.descuento_familiar});
+    },
+    enviarCambio: async function(id,accion,datos) {
+        if (this.cambioEnCurso) return;
+        this.cambioEnCurso = true;
+        try {
+            const res = await fetch(`${this.apiBase}/clientas/${id}/${accion}`,{
+                method:'POST',headers:this.headersAdmin(),body:JSON.stringify(datos)
+            });
+            const respuesta = await res.json();
+            if (!res.ok) throw new Error(respuesta.error || 'No se pudo guardar el cambio');
+            await this.cargarDesdeServidor();
+        } catch(e) { alert(e.message); }
+        finally { this.cambioEnCurso = false; }
     }
 };
