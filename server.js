@@ -1444,6 +1444,12 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
             fecha_pago
         } = req.body;
 
+        // Ausencia permitida para clientes antiguos; no inventar el medio histórico.
+        const medioPago = req.body.medio_pago;
+        if (medioPago !== undefined && !['EFECTIVO', 'TRANSFERENCIA'].includes(medioPago)) {
+            return res.status(400).json({ error: 'Elegí Efectivo o Transferencia.' });
+        }
+
         const habilitada = await db.query('SELECT 1 FROM booty_cuotas_gimnasios WHERE gym_id=$1', [req.admin.gym_id]);
         if (habilitada.rows.length) {
             const fechaAR = new Intl.DateTimeFormat('en-CA', {
@@ -1458,8 +1464,14 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
                 monto === null || monto === undefined || monto === '' || !Number.isFinite(Number(monto)) || Number(monto) < 0) {
                 return res.status(400).json({ error: 'Clienta, período o importe inválido.' });
             }
-            await db.query('SELECT booty_registrar_pago($1::text,$2::integer,$3::integer,$4::integer,$5::numeric,$6::text)',
-                [req.admin.gym_id, Number(clienta_id), periodoMes, periodoAnio, Number(monto), usuario_registro || 'Admin']);
+            const datosPago = [req.admin.gym_id, Number(clienta_id), periodoMes, periodoAnio,
+                Number(monto), req.admin.username || 'Admin'];
+            if (medioPago === undefined) {
+                await db.query('SELECT booty_registrar_pago($1::text,$2::integer,$3::integer,$4::integer,$5::numeric,$6::text)', datosPago);
+            } else {
+                await db.query('SELECT booty_registrar_pago_con_medio($1::text,$2::integer,$3::integer,$4::integer,$5::numeric,$6::text,$7::text)',
+                    [...datosPago, medioPago]);
+            }
             return res.status(200).json({ status: 'success', message: 'Pago registrado correctamente' });
         }
 
@@ -1473,10 +1485,11 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
                 anio,
                 nombre_completo,
                 usuario_registro,
-                fecha_pago
+                fecha_pago,
+                medio_pago
             )
             VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `;
 
         await db.query(
@@ -1488,8 +1501,9 @@ app.post('/pagos', requerirAdmin, async (req, res) => {
                 mes || new Date().getMonth() + 1,
                 anio || new Date().getFullYear(),
                 nombre_completo || '',
-                usuario_registro || 'Admin',
-                fecha_pago || new Date()
+                req.admin.username || 'Admin',
+                fecha_pago || new Date(),
+                medioPago ?? null
             ]
         );
 
