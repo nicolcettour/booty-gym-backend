@@ -148,7 +148,7 @@ window.GymApp.pagos = {
 
                 htmlMovimientos += `
                     <li style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em;">
-                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${usuarioReg})</small></span>
+                        <span>${horaStr} - ${m.nombre_completo || 'Clienta'} <small style="color:#aaa">(${usuarioReg}) · ${this.etiquetaMedioPago(m)}</small></span>
                         <span style="color: #4caf50; font-weight: bold;">$${montoNum.toFixed(2)}</span>
                     </li>
                 `;
@@ -280,21 +280,7 @@ window.GymApp.pagos = {
         ? new Date(pagoEncontrado.fecha_pago).toLocaleDateString('es-AR')
         : '';
 
-    const medioPago =
-        (pagoEncontrado.medio_pago || '').toLowerCase().includes('mercado')
-            ? 'MP'
-            : '';
-
-    const origenPago =
-        pagoEncontrado.origen === 'APP_SOCIAS'
-            ? 'App Socias'
-            : '';
-
-    const detallePago = [
-        fechaPago,
-        medioPago,
-        origenPago
-    ].filter(Boolean).join(' · ');
+    const detallePago = [fechaPago, this.etiquetaMedioPago(pagoEncontrado)].filter(Boolean).join(' · ');
 
     return `<li data-nombre="${c.nombre.toLowerCase()} ${c.apellido.toLowerCase()}" style="padding:12px 0; border-bottom:1px solid #444; color: #fff;">
                 ${c.nombre} ${c.apellido} (${frecuenciaSemanal} días)${detalleCuota}: 
@@ -347,8 +333,67 @@ window.GymApp.pagos = {
         }
     },
 
+    etiquetaMedioPago: function(pago) {
+        const medio = String(pago.medio_pago || '').trim().toUpperCase();
+        const app = String(pago.origen || '').toUpperCase() === 'APP_SOCIAS';
+        const mp = medio.includes('MERCADO') || medio === 'MP' || medio === 'MERCADOPAGO';
+        if (app) return 'MP App socias';
+        if (mp) return 'MP';
+        if (medio === 'EFECTIVO') return 'Efectivo';
+        if (medio === 'TRANSFERENCIA') return 'Transferencia';
+        return 'Medio no informado';
+    },
+
+    elegirMedioPago: function(nombre, mes, anio, monto) {
+        if (this.selectorMedioAbierto) return Promise.resolve(null);
+        this.selectorMedioAbierto = true;
+        return new Promise(resolve => {
+            const dialogo = document.createElement('dialog');
+            dialogo.setAttribute('aria-labelledby', 'titulo-medio-pago');
+            dialogo.style.cssText = 'background:#222;color:white;border:1px solid #ff9a8b;border-radius:14px;padding:24px;max-width:420px;width:85%;box-sizing:border-box;';
+            dialogo.innerHTML = `
+                <form method="dialog">
+                    <h3 id="titulo-medio-pago" style="margin-top:0;color:#ff9a8b;">Registrar pago</h3>
+                    <p id="detalle-medio-pago"></p>
+                    <label for="seleccion-medio-pago">¿Cómo pagó?</label>
+                    <select id="seleccion-medio-pago" required style="display:block;width:100%;padding:12px;margin:12px 0 20px;background:#111;color:white;border:1px solid #888;border-radius:6px;">
+                        <option value="">Elegí el medio de pago</option>
+                        <option value="EFECTIVO">Efectivo</option>
+                        <option value="TRANSFERENCIA">Transferencia</option>
+                    </select>
+                    <div style="display:flex;gap:12px;justify-content:flex-end;">
+                        <button type="button" id="cancelar-medio-pago" style="padding:10px;">Cancelar</button>
+                        <button type="submit" style="padding:10px;background:#ff9a8b;border:0;border-radius:6px;">Registrar pago</button>
+                    </div>
+                </form>`;
+            dialogo.querySelector('#detalle-medio-pago').textContent = `${nombre} · ${mes}/${anio} · $${Number(monto).toLocaleString('es-AR')}`;
+            const select = dialogo.querySelector('select');
+            let elegido = null;
+            dialogo.querySelector('form').addEventListener('submit', evento => {
+                evento.preventDefault();
+                if (!['EFECTIVO', 'TRANSFERENCIA'].includes(select.value)) return;
+                elegido = select.value;
+                dialogo.close();
+            });
+            dialogo.querySelector('#cancelar-medio-pago').addEventListener('click', () => dialogo.close());
+            dialogo.addEventListener('close', () => {
+                dialogo.remove();
+                this.selectorMedioAbierto = false;
+                resolve(elegido);
+            }, { once: true });
+            document.body.appendChild(dialogo);
+            dialogo.showModal();
+            select.focus();
+        });
+    },
+
     registrar: async function(i, monto, botonElement) {
+        if (botonElement?.disabled) return;
         const clienta = window.GymApp.config.clientas[i];
+        if (!clienta) return;
+        const periodo = this.fechaArgentina();
+        const medioPago = await this.elegirMedioPago(`${clienta.nombre} ${clienta.apellido}`, periodo.mes, periodo.anio, monto);
+        if (!medioPago) return;
         const gymId = localStorage.getItem('gym_id');
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
         
@@ -363,8 +408,9 @@ window.GymApp.pagos = {
             const cuerpoPeticion = {
                 clienta_id: clienta.id,
                 monto: monto,
-                mes: this.fechaArgentina().mes,
-                anio: this.fechaArgentina().anio,
+                mes: periodo.mes,
+                anio: periodo.anio,
+                medio_pago: medioPago,
                 nombre_completo: `${clienta.nombre} ${clienta.apellido}`,
                 usuario_registro: usuarioActual
             };
@@ -541,6 +587,7 @@ window.GymApp.pagos = {
     },
 
     registrarDeuda: async function(clientaId, mes, anio, monto, botonElement) {
+        if (botonElement?.disabled) return;
         const deudas = window.GymApp.deudasCalculadas || [];
         const deuda = deudas.find(d => Number(d.clienta.id) === Number(clientaId) && Number(d.mes) === Number(mes) && Number(d.anio) === Number(anio));
         if (!deuda) {
@@ -548,9 +595,8 @@ window.GymApp.pagos = {
             return;
         }
 
-        if (!confirm(`¿Registrar el pago de ${deuda.clienta.nombre} ${deuda.clienta.apellido} correspondiente a ${mes}/${anio} por $${monto}?`)) {
-            return;
-        }
+        const medioPago = await this.elegirMedioPago(`${deuda.clienta.nombre} ${deuda.clienta.apellido}`, mes, anio, monto);
+        if (!medioPago) return;
 
         const gymId = localStorage.getItem('gym_id') || 'BOOTY_GYM_001';
         const usuarioActual = localStorage.getItem('admin_user') || 'Usuario';
@@ -568,6 +614,7 @@ window.GymApp.pagos = {
                 body: JSON.stringify({
                     clienta_id: deuda.clienta.id,
                     monto: Number(monto),
+                    medio_pago: medioPago,
                     mes: Number(mes),
                     anio: Number(anio),
                     nombre_completo: `${deuda.clienta.nombre} ${deuda.clienta.apellido}`,
@@ -653,6 +700,7 @@ window.GymApp.pagos = {
                         <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${m.concepto || 'Cuota Mensual'}</td>
                         <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${horaStr}</td>
                         <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${cobradoPor}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${this.etiquetaMedioPago(m)}</td>
                         <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold; color: #2e7d32;">$${montoNum.toFixed(2)}</td>
                     </tr>
                 `;
@@ -691,6 +739,7 @@ window.GymApp.pagos = {
                                     <th style="text-align: center;">Concepto</th>
                                     <th style="text-align: center;">Hora</th>
                                     <th style="text-align: center;">Cobró</th>
+                                    <th style="text-align: center;">Medio de pago</th>
                                     <th style="text-align: right;">Monto</th>
                                 </tr>
                             </thead>
@@ -820,13 +869,8 @@ window.GymApp.pagos = {
 
     const montoFormateado = Number(p.monto || 0).toLocaleString('es-AR');
 
-    const esPagoApp = p.origen === 'APP_SOCIAS';
-
-    const medioPago = p.medio_pago || '';
-
-    const textoOrigen = esPagoApp
-        ? 'Pagado desde la app'
-        : '';
+    const medioPago = this.etiquetaMedioPago(p);
+    const textoOrigen = '';
 
     html += `
         <li style="
